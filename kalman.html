@@ -51,7 +51,7 @@
             max-height: 90vh;
             overflow-y: auto;
         }
-        
+
         /* Matrix Display Styles */
         .matrix-container {
             display: inline-block;
@@ -59,12 +59,12 @@
             margin: 10px;
             font-family: 'Courier New', monospace;
         }
-        
+
         .matrix-brackets {
             position: relative;
             display: inline-block;
         }
-        
+
         .matrix-brackets::before,
         .matrix-brackets::after {
             content: '';
@@ -76,21 +76,21 @@
             border-left: none;
             border-right: none;
         }
-        
+
         .matrix-brackets::before {
             left: -10px;
             border-left: 2px solid #4af;
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
         }
-        
+
         .matrix-brackets::after {
             right: -10px;
             border-right: 2px solid #4af;
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
         }
-        
+
         .matrix-grid {
             display: grid;
             gap: 6px 10px;
@@ -98,12 +98,12 @@
             align-items: center;
             justify-items: center;
         }
-        
+
         .matrix-2x2 { grid-template-columns: repeat(2, 1fr); }
         .matrix-2x6 { grid-template-columns: repeat(6, 1fr); }
         .matrix-6x2 { grid-template-columns: repeat(2, 1fr); }
         .matrix-6x6 { grid-template-columns: repeat(6, 1fr); }
-        
+
         .matrix-cell {
             font-size: 10px;
             color: #0ff;
@@ -111,11 +111,11 @@
             min-width: 42px;
             white-space: nowrap;
         }
-        
+
         .matrix-cell.inactive {
             color: #666;
         }
-        
+
         .matrix-title {
             color: #4af;
             font-size: 13px;
@@ -123,14 +123,14 @@
             text-align: center;
             font-family: Arial, sans-serif;
         }
-        
+
         .matrices-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 25px;
             margin-top: 15px;
         }
-        
+
         .matrix-display {
             text-align: center;
             background: #1a1a1a;
@@ -138,7 +138,7 @@
             border-radius: 6px;
             border: 1px solid #333;
         }
-        
+
         h2[data-tooltip]:hover::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -633,7 +633,7 @@
         // ================================
         // UTILITY MODULES
         // ================================
-        
+
         /**
          * Matrix utility functions - completely modular
          */
@@ -705,7 +705,7 @@
         // ================================
         // DATA GENERATOR INTERFACES
         // ================================
-        
+
         /**
          * Base class for trajectory generators
          * Extend this to create new trajectory types
@@ -779,7 +779,7 @@
                 const { maxTime, scale } = this.config;
                 const cycleTime = maxTime / 3; // 3 squares in maxTime
                 const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one cycle
-                
+
                 if (phase < 0.25) {
                     // Top edge: left to right
                     const progress = phase / 0.25;
@@ -850,25 +850,25 @@
                 const phase = ((t % cycleTime) / cycleTime) * 10; // 0 to 10 for 5-pointed star
                 const pointIndex = Math.floor(phase);
                 const progress = phase - pointIndex;
-                
+
                 const outerRadius = scale;
                 const innerRadius = scale * 0.4;
-                
+
                 // 5-pointed star: alternate between outer and inner points
                 const getStarPoint = (index, outer) => {
                     const angle = (index * 2 * Math.PI / 10) - Math.PI / 2; // Start at top
                     const radius = outer ? outerRadius : innerRadius;
                     return [radius * Math.cos(angle), radius * Math.sin(angle)];
                 };
-                
+
                 const isOuter = pointIndex % 2 === 0;
                 const currentPoint = getStarPoint(pointIndex, isOuter);
                 const nextPoint = getStarPoint((pointIndex + 1) % 10, !isOuter);
-                
+
                 // Linear interpolation between points
                 const x = currentPoint[0] + progress * (nextPoint[0] - currentPoint[0]);
                 const y = currentPoint[1] + progress * (nextPoint[1] - currentPoint[1]);
-                
+
                 return [x, y];
             }
 
@@ -886,24 +886,24 @@
                 this.positions = [];
                 this.generateWalk();
             }
-            
+
             generateWalk() {
                 const { maxTime, scale } = this.config;
                 const dt = 0.05;
                 const steps = Math.ceil(maxTime / dt);
                 const stepSize = scale * 0.02;
-                
+
                 let x = 0, y = 0;
                 this.positions = [];
-                
+
                 for (let i = 0; i <= steps; i++) {
                     this.positions.push([x, y]);
-                    
+
                     // Random step
                     const angle = Math.random() * 2 * Math.PI;
                     x += stepSize * Math.cos(angle);
                     y += stepSize * Math.sin(angle);
-                    
+
                     // Keep within bounds
                     const maxPos = scale * 1.2;
                     x = Math.max(-maxPos, Math.min(maxPos, x));
@@ -948,7 +948,7 @@
                 const { maxTime, scale } = this.config;
                 const cycleTime = maxTime / 3; // 3 back-and-forth cycles
                 const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one cycle
-                
+
                 // Linear motion: 0->1->0 over one cycle
                 let progress;
                 if (phase <= 0.5) {
@@ -956,7 +956,7 @@
                 } else {
                     progress = 2 - phase * 2; // 1 to 0
                 }
-                
+
                 const x = scale * (progress * 2 - 1); // -scale to +scale
                 const y = 0; // horizontal line
                 return [x, y];
@@ -975,7 +975,7 @@
                 const { maxTime, scale } = this.config;
                 const cycleTime = maxTime / 3; // 3 back-and-forth cycles
                 const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one cycle
-                
+
                 // Quadratic motion for constant acceleration
                 let progress;
                 if (phase <= 0.5) {
@@ -987,7 +987,7 @@
                     const localPhase = (phase - 0.5) * 2; // 0 to 1
                     progress = 1 - localPhase * localPhase; // quadratic: 1 to 0
                 }
-                
+
                 const x = scale * (progress * 2 - 1); // -scale to +scale
                 const y = 0; // horizontal line
                 return [x, y];
@@ -1023,12 +1023,12 @@
                 const { maxTime, scale } = this.config;
                 const cycleTime = maxTime / 2; // 2 parabolic arcs
                 const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one arc
-                
+
                 // Parabolic trajectory: y = -a*x^2 + height
                 const x = scale * (phase * 2 - 1); // -scale to +scale
                 const height = scale * 0.8;
                 const y = height * (1 - 4 * phase * (1 - phase)); // parabola peaking at 0.5
-                
+
                 return [x, y];
             }
 
@@ -1045,7 +1045,7 @@
                 const { maxTime, scale } = this.config;
                 const stepDuration = maxTime / 6; // 6 steps total
                 const stepIndex = Math.floor(t / stepDuration);
-                
+
                 // Alternating positions
                 const positions = [
                     [-scale, -scale * 0.5],
@@ -1055,7 +1055,7 @@
                     [0, -scale],
                     [0, scale]
                 ];
-                
+
                 return positions[stepIndex % positions.length];
             }
 
@@ -1072,7 +1072,7 @@
                 const { maxTime, scale } = this.config;
                 const cycleDuration = maxTime / 4; // 4 cycles
                 const phase = (t % cycleDuration) / cycleDuration; // 0 to 1 per cycle
-                
+
                 let x, y;
                 if (phase < 0.7) {
                     // Moving phase (70% of cycle)
@@ -1086,7 +1086,7 @@
                     x = scale * Math.cos(angle);
                     y = scale * Math.sin(angle);
                 }
-                
+
                 return [x, y];
             }
 
@@ -1098,7 +1098,7 @@
         // ================================
         // FILTER INTERFACES
         // ================================
-        
+
         /**
          * Base class for all filters
          * Extend this to implement different filter types
@@ -1277,7 +1277,7 @@
             updateNoise(measurementNoise, processNoise) {
                 const q = processNoise;
                 const dt = this.dt;
-                
+
                 this.Q = [
                     [dt**4/4 * q, 0, dt**3/2 * q, 0, dt**2/2 * q, 0],
                     [0, dt**4/4 * q, 0, dt**3/2 * q, 0, dt**2/2 * q],
@@ -1297,7 +1297,7 @@
         // ================================
         // VISUALIZATION ENGINE
         // ================================
-        
+
         /**
          * Handles all canvas visualization
          */
@@ -1328,7 +1328,7 @@
              */
             drawErrorEllipse(x, y, cov, confidence = 0.95) {
                 const chi2 = 5.991; // 95% confidence for 2D
-                
+
                 const a = cov[0][0];
                 const b = cov[0][1];
                 const c = cov[1][1];
@@ -1357,7 +1357,7 @@
              */
             draw(data) {
                 const { currentTime, dt, groundTruth, measurements, estimates, covariances } = data;
-                
+
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.save();
                 this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
@@ -1450,7 +1450,7 @@
         // ================================
         // STATE DISPLAY ENGINE
         // ================================
-        
+
         /**
          * Manages the state panel display
          */
@@ -1487,7 +1487,7 @@
             displayMatrix(matrix, elementId) {
                 const container = document.getElementById(elementId);
                 if (!container) return;
-                
+
                 container.innerHTML = '';
                 matrix.forEach(row => {
                     row.forEach(val => {
@@ -1560,19 +1560,24 @@
             }
 
             updateInnovationAndGain(innovation, kalmanGain, inactive) {
-                const className = inactive ? 'matrix-cell inactive' : 'matrix-cell';
-
                 // Update innovation - show values if available, otherwise show "--"
                 if (innovation) {
                     this.elements.innovationX.textContent = innovation[0].toFixed(2);
                     this.elements.innovationY.textContent = innovation[1].toFixed(2);
-                    this.elements.innovationX.className = className;
-                    this.elements.innovationY.className = className;
+
+                    // Manage inactive class properly
+                    if (inactive) {
+                        this.elements.innovationX.classList.add('inactive');
+                        this.elements.innovationY.classList.add('inactive');
+                    } else {
+                        this.elements.innovationX.classList.remove('inactive');
+                        this.elements.innovationY.classList.remove('inactive');
+                    }
                 } else {
                     this.elements.innovationX.textContent = '--';
                     this.elements.innovationY.textContent = '--';
-                    this.elements.innovationX.className = 'matrix-cell inactive';
-                    this.elements.innovationY.className = 'matrix-cell inactive';
+                    this.elements.innovationX.classList.add('inactive');
+                    this.elements.innovationY.classList.add('inactive');
                 }
 
                 // Update Kalman gain - show values if available, otherwise show "--"
@@ -1581,12 +1586,18 @@
                         const row = Math.floor(index / 2);
                         const col = index % 2;
                         element.textContent = kalmanGain[row][col].toFixed(3);
-                        element.className = className;
+
+                        // Manage inactive class properly
+                        if (inactive) {
+                            element.classList.add('inactive');
+                        } else {
+                            element.classList.remove('inactive');
+                        }
                     });
                 } else {
                     this.elements.kalmanGainElements.forEach(({ element }) => {
                         element.textContent = '--';
-                        element.className = 'matrix-cell inactive';
+                        element.classList.add('inactive');
                     });
                 }
             }
@@ -1595,7 +1606,7 @@
         // ================================
         // UI CONTROLLER
         // ================================
-        
+
         /**
          * Manages all UI interactions
          */
@@ -1615,7 +1626,7 @@
                 const timeSlider = document.getElementById('timeSlider');
                 const timeValue = document.getElementById('timeValue');
                 timeSlider.max = this.sim.config.maxTime / this.sim.config.dt;
-                
+
                 timeSlider.addEventListener('input', (e) => {
                     this.sim.setTime(e.target.value * this.sim.config.dt);
                     timeValue.textContent = this.sim.currentTime.toFixed(2) + 's';
@@ -1650,8 +1661,8 @@
                     const section = document.getElementById('matricesSection');
                     const toggle = document.getElementById('toggleMatrices');
                     const isVisible = section.classList.toggle('visible');
-                    toggle.textContent = isVisible ? 
-                        'Hide System Matrices & Equations ▲' : 
+                    toggle.textContent = isVisible ?
+                        'Hide System Matrices & Equations ▲' :
                         'Show System Matrices & Equations ▼';
                     this.sim.setMatrixVisibility(isVisible);
                 });
@@ -1666,7 +1677,7 @@
         // ================================
         // MAIN SIMULATION CONTROLLER
         // ================================
-        
+
         /**
          * Orchestrates all components - this is where you swap implementations
          */
@@ -1684,7 +1695,7 @@
 
                 // EASILY SWAPPABLE COMPONENTS - Change these to swap implementations
                 this.trajectoryGenerator = this.createTrajectoryGenerator();
-                
+
                 this.filter = new KalmanFilter2D({
                     dt: this.config.dt,
                     measurementNoise: 15,
@@ -1694,12 +1705,12 @@
                 // Initialize other components
                 this.visualization = new VisualizationEngine('canvas');
                 this.stateDisplay = new StateDisplayEngine();
-                
+
                 // Simulation state
                 this.currentTime = 0;
                 this.playing = false;
                 this.showMatrices = false;
-                
+
                 // Data storage
                 this.groundTruth = [];
                 this.measurements = [];
@@ -1726,9 +1737,9 @@
              * TO SWAP TRAJECTORY: Change this method
              */
             createTrajectoryGenerator() {
-                const config = { 
-                    maxTime: this.config.maxTime, 
-                    scale: 150 
+                const config = {
+                    maxTime: this.config.maxTime,
+                    scale: 150
                 };
 
                 switch (this.trajectoryType) {
@@ -1825,12 +1836,12 @@
                     const position = this.filter.getPosition();
                     this.estimates.push(position);
                     this.covariances.push(this.filter.getPositionCovariance());
-                    
+
                     this.filterStates.push({
                         state: [...this.filter.getState().map(row => row[0])],
                         covariance: this.filter.covariance.map(row => [...row]),
                         innovation: lastInnovation, // Always the last known values
-                        kalmanGain: lastKalmanGain, // Always the last known values  
+                        kalmanGain: lastKalmanGain, // Always the last known values
                         innovationCovariance: lastInnovationCovariance, // Always the last known values
                         hadMeasurement: hadMeasurement
                     });
@@ -1935,7 +1946,7 @@
         // ================================
         // APPLICATION STARTUP
         // ================================
-        
+
         /**
          * Main application entry point
          * TO SWAP IMPLEMENTATIONS: Modify the config or component creation here
