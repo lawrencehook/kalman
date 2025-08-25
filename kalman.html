@@ -366,7 +366,7 @@
     </style>
 </head>
 <body>
-    <h1 style="text-align: center;">2D Kalman Filter - Figure 8 Tracking</h1>
+    <h1 style="text-align: center;">2D Kalman Filter - Multi-Shape Tracking</h1>
 
     <div class="legend">
         <div class="legend-item">
@@ -393,7 +393,27 @@
 
             <div class="controls">
                 <div class="slider-container">
-                    <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurements arrive at 10Hz (every 0.1s). The object completes 3 figure-8 patterns over 30 seconds.">Time:</label>
+                    <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
+                    <select id="trajectorySelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                        <option value="figure8">Figure-8</option>
+                        <option value="circle">Circle</option>
+                        <option value="constantvelocity">Constant Velocity Line</option>
+                        <option value="constantacceleration">Constant Acceleration Line</option>
+                        <option value="sinewave">Sine Wave</option>
+                        <option value="parabolic">Parabolic Arc</option>
+                        <option value="square">Square</option>
+                        <option value="spiral">Spiral</option>
+                        <option value="heart">Heart</option>
+                        <option value="star">Star</option>
+                        <option value="infinity">Infinity (∞)</option>
+                        <option value="stepfunction">Step Function</option>
+                        <option value="stopandgo">Stop and Go</option>
+                        <option value="randomwalk">Random Walk</option>
+                    </select>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurements arrive at 10Hz (every 0.1s). The object completes multiple trajectory patterns over 30 seconds.">Time:</label>
                     <input type="range" id="timeSlider" min="0" max="100" value="0" step="1">
                     <span class="value" id="timeValue">0.00s</span>
                 </div>
@@ -751,6 +771,330 @@
             }
         }
 
+        /**
+         * Square trajectory generator - tests sharp corners
+         */
+        class SquareGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const cycleTime = maxTime / 3; // 3 squares in maxTime
+                const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one cycle
+                
+                if (phase < 0.25) {
+                    // Top edge: left to right
+                    const progress = phase / 0.25;
+                    return [scale * (progress * 2 - 1), scale];
+                } else if (phase < 0.5) {
+                    // Right edge: top to bottom
+                    const progress = (phase - 0.25) / 0.25;
+                    return [scale, scale * (1 - progress * 2)];
+                } else if (phase < 0.75) {
+                    // Bottom edge: right to left
+                    const progress = (phase - 0.5) / 0.25;
+                    return [scale * (1 - progress * 2), -scale];
+                } else {
+                    // Left edge: bottom to top
+                    const progress = (phase - 0.75) / 0.25;
+                    return [-scale, scale * (progress * 2 - 1)];
+                }
+            }
+
+            getName() {
+                return 'Square';
+            }
+        }
+
+        /**
+         * Spiral trajectory generator - varying speed
+         */
+        class SpiralGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const phase = t * 4 * Math.PI / maxTime; // 2 full spirals
+                const radius = scale * (0.2 + 0.8 * t / maxTime); // Growing radius
+                const x = radius * Math.cos(phase);
+                const y = radius * Math.sin(phase);
+                return [x, y];
+            }
+
+            getName() {
+                return 'Spiral';
+            }
+        }
+
+        /**
+         * Heart shape trajectory generator - smooth parametric curve
+         */
+        class HeartGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const phase = t * 6 * Math.PI / maxTime; // 3 hearts in maxTime
+                // Parametric heart equation
+                const x = scale * 0.8 * (16 * Math.sin(phase)**3) / 16;
+                const y = scale * 0.8 * (13 * Math.cos(phase) - 5 * Math.cos(2*phase) - 2 * Math.cos(3*phase) - Math.cos(4*phase)) / 16;
+                return [x, -y]; // Flip Y to make heart upright
+            }
+
+            getName() {
+                return 'Heart';
+            }
+        }
+
+        /**
+         * Star trajectory generator - sharp points and straight segments
+         */
+        class StarGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const cycleTime = maxTime / 2; // 2 stars in maxTime
+                const phase = ((t % cycleTime) / cycleTime) * 10; // 0 to 10 for 5-pointed star
+                const pointIndex = Math.floor(phase);
+                const progress = phase - pointIndex;
+                
+                const outerRadius = scale;
+                const innerRadius = scale * 0.4;
+                
+                // 5-pointed star: alternate between outer and inner points
+                const getStarPoint = (index, outer) => {
+                    const angle = (index * 2 * Math.PI / 10) - Math.PI / 2; // Start at top
+                    const radius = outer ? outerRadius : innerRadius;
+                    return [radius * Math.cos(angle), radius * Math.sin(angle)];
+                };
+                
+                const isOuter = pointIndex % 2 === 0;
+                const currentPoint = getStarPoint(pointIndex, isOuter);
+                const nextPoint = getStarPoint((pointIndex + 1) % 10, !isOuter);
+                
+                // Linear interpolation between points
+                const x = currentPoint[0] + progress * (nextPoint[0] - currentPoint[0]);
+                const y = currentPoint[1] + progress * (nextPoint[1] - currentPoint[1]);
+                
+                return [x, y];
+            }
+
+            getName() {
+                return 'Star';
+            }
+        }
+
+        /**
+         * Random walk trajectory generator - stochastic motion
+         */
+        class RandomWalkGenerator extends TrajectoryGenerator {
+            constructor(config = {}) {
+                super(config);
+                this.positions = [];
+                this.generateWalk();
+            }
+            
+            generateWalk() {
+                const { maxTime, scale } = this.config;
+                const dt = 0.05;
+                const steps = Math.ceil(maxTime / dt);
+                const stepSize = scale * 0.02;
+                
+                let x = 0, y = 0;
+                this.positions = [];
+                
+                for (let i = 0; i <= steps; i++) {
+                    this.positions.push([x, y]);
+                    
+                    // Random step
+                    const angle = Math.random() * 2 * Math.PI;
+                    x += stepSize * Math.cos(angle);
+                    y += stepSize * Math.sin(angle);
+                    
+                    // Keep within bounds
+                    const maxPos = scale * 1.2;
+                    x = Math.max(-maxPos, Math.min(maxPos, x));
+                    y = Math.max(-maxPos, Math.min(maxPos, y));
+                }
+            }
+
+            generatePosition(t) {
+                const dt = 0.05;
+                const index = Math.min(Math.floor(t / dt), this.positions.length - 1);
+                return this.positions[index];
+            }
+
+            getName() {
+                return 'Random Walk';
+            }
+        }
+
+        /**
+         * Infinity symbol (∞) trajectory generator - another smooth curve
+         */
+        class InfinityGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const phase = t * 6 * Math.PI / maxTime; // 3 infinity symbols in maxTime
+                // Parametric infinity curve (lemniscate)
+                const x = scale * Math.cos(phase) / (1 + Math.sin(phase)**2);
+                const y = scale * Math.sin(phase) * Math.cos(phase) / (1 + Math.sin(phase)**2);
+                return [x, y];
+            }
+
+            getName() {
+                return 'Infinity (∞)';
+            }
+        }
+
+        /**
+         * Straight line with constant velocity - back and forth
+         */
+        class ConstantVelocityGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const cycleTime = maxTime / 3; // 3 back-and-forth cycles
+                const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one cycle
+                
+                // Linear motion: 0->1->0 over one cycle
+                let progress;
+                if (phase <= 0.5) {
+                    progress = phase * 2; // 0 to 1
+                } else {
+                    progress = 2 - phase * 2; // 1 to 0
+                }
+                
+                const x = scale * (progress * 2 - 1); // -scale to +scale
+                const y = 0; // horizontal line
+                return [x, y];
+            }
+
+            getName() {
+                return 'Constant Velocity Line';
+            }
+        }
+
+        /**
+         * Straight line with constant acceleration - back and forth
+         */
+        class ConstantAccelerationGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const cycleTime = maxTime / 3; // 3 back-and-forth cycles
+                const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one cycle
+                
+                // Quadratic motion for constant acceleration
+                let progress;
+                if (phase <= 0.5) {
+                    // Accelerating from 0 to max, then decelerating to middle
+                    const localPhase = phase * 2; // 0 to 1
+                    progress = localPhase * localPhase; // quadratic: 0 to 1
+                } else {
+                    // Accelerating from middle to 0
+                    const localPhase = (phase - 0.5) * 2; // 0 to 1
+                    progress = 1 - localPhase * localPhase; // quadratic: 1 to 0
+                }
+                
+                const x = scale * (progress * 2 - 1); // -scale to +scale
+                const y = 0; // horizontal line
+                return [x, y];
+            }
+
+            getName() {
+                return 'Constant Acceleration Line';
+            }
+        }
+
+        /**
+         * Sine wave trajectory - smooth 1D oscillation
+         */
+        class SineWaveGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const frequency = 6 / maxTime; // 6 complete waves over maxTime
+                const x = scale * Math.sin(2 * Math.PI * frequency * t);
+                const y = 0; // horizontal oscillation
+                return [x, y];
+            }
+
+            getName() {
+                return 'Sine Wave';
+            }
+        }
+
+        /**
+         * Parabolic trajectory - projectile motion
+         */
+        class ParabolicGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const cycleTime = maxTime / 2; // 2 parabolic arcs
+                const phase = (t % cycleTime) / cycleTime; // 0 to 1 for one arc
+                
+                // Parabolic trajectory: y = -a*x^2 + height
+                const x = scale * (phase * 2 - 1); // -scale to +scale
+                const height = scale * 0.8;
+                const y = height * (1 - 4 * phase * (1 - phase)); // parabola peaking at 0.5
+                
+                return [x, y];
+            }
+
+            getName() {
+                return 'Parabolic Arc';
+            }
+        }
+
+        /**
+         * Step function - sudden position changes
+         */
+        class StepFunctionGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const stepDuration = maxTime / 6; // 6 steps total
+                const stepIndex = Math.floor(t / stepDuration);
+                
+                // Alternating positions
+                const positions = [
+                    [-scale, -scale * 0.5],
+                    [scale, -scale * 0.5],
+                    [-scale, scale * 0.5],
+                    [scale, scale * 0.5],
+                    [0, -scale],
+                    [0, scale]
+                ];
+                
+                return positions[stepIndex % positions.length];
+            }
+
+            getName() {
+                return 'Step Function';
+            }
+        }
+
+        /**
+         * Stop and go - periods of motion and rest
+         */
+        class StopAndGoGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const cycleDuration = maxTime / 4; // 4 cycles
+                const phase = (t % cycleDuration) / cycleDuration; // 0 to 1 per cycle
+                
+                let x, y;
+                if (phase < 0.7) {
+                    // Moving phase (70% of cycle)
+                    const movePhase = phase / 0.7; // 0 to 1
+                    const angle = (Math.floor(t / cycleDuration) % 4) * Math.PI / 2; // 0, π/2, π, 3π/2
+                    x = scale * movePhase * Math.cos(angle);
+                    y = scale * movePhase * Math.sin(angle);
+                } else {
+                    // Stopped phase (30% of cycle) - hold last position
+                    const angle = (Math.floor(t / cycleDuration) % 4) * Math.PI / 2;
+                    x = scale * Math.cos(angle);
+                    y = scale * Math.sin(angle);
+                }
+                
+                return [x, y];
+            }
+
+            getName() {
+                return 'Stop and Go';
+            }
+        }
+
         // ================================
         // FILTER INTERFACES
         // ================================
@@ -1032,52 +1376,33 @@
                 }
                 this.ctx.stroke();
 
-                // Draw estimates with error ellipses (faded by age)
-                for (let i = 0; i <= timeIndex && i < estimates.length; i += 2) {
+                // Draw historical estimates with error ellipses (faded by age, every 2nd point for performance)
+                for (let i = 0; i < timeIndex && i < estimates.length; i += 2) {
                     const t = i * dt;
                     const age = currentTime - t;
                     const a = this.fadeAlphaFromAge(age);
 
-                    if (i === timeIndex) {
-                        // Current ellipse
-                        this.ctx.globalAlpha = 0.3;
-                        this.ctx.strokeStyle = 'rgba(0,255,255,1)';
-                        this.ctx.lineWidth = 2;
-                        this.drawErrorEllipse(estimates[i][0], estimates[i][1], covariances[i]);
-                        this.ctx.stroke();
+                    // Historical ellipses (faded)
+                    this.ctx.globalAlpha = a * 0.15;
+                    this.ctx.strokeStyle = 'rgba(0,255,255,1)';
+                    this.ctx.fillStyle = 'rgba(0,255,255,1)';
+                    this.ctx.lineWidth = 1;
+                    this.drawErrorEllipse(estimates[i][0], estimates[i][1], covariances[i]);
+                    this.ctx.stroke();
 
-                        this.ctx.globalAlpha = 0.05;
-                        this.ctx.fillStyle = 'rgba(0,255,255,1)';
-                        this.ctx.fill();
+                    this.ctx.globalAlpha = a * 0.05;
+                    this.ctx.fill();
 
-                        // Current estimate dot
-                        this.ctx.globalAlpha = 1.0;
-                        this.ctx.fillStyle = '#0ff';
-                        this.ctx.beginPath();
-                        this.ctx.arc(estimates[i][0], estimates[i][1], 6, 0, 2 * Math.PI);
-                        this.ctx.fill();
-                    } else {
-                        // Historical ellipses (faded)
-                        this.ctx.globalAlpha = a * 0.15;
-                        this.ctx.strokeStyle = 'rgba(0,255,255,1)';
-                        this.ctx.fillStyle = 'rgba(0,255,255,1)';
-                        this.ctx.lineWidth = 1;
-                        this.drawErrorEllipse(estimates[i][0], estimates[i][1], covariances[i]);
-                        this.ctx.stroke();
-
-                        this.ctx.globalAlpha = a * 0.05;
-                        this.ctx.fill();
-
-                        // Historical estimate dot
-                        this.ctx.globalAlpha = a * 0.5;
-                        this.ctx.fillStyle = '#0ff';
-                        this.ctx.beginPath();
-                        this.ctx.arc(estimates[i][0], estimates[i][1], 2, 0, 2 * Math.PI);
-                        this.ctx.fill();
-                    }
+                    // Historical estimate dot
+                    this.ctx.globalAlpha = a * 0.5;
+                    this.ctx.fillStyle = '#0ff';
+                    this.ctx.beginPath();
+                    this.ctx.arc(estimates[i][0], estimates[i][1], 2, 0, 2 * Math.PI);
+                    this.ctx.fill();
                 }
 
                 // Draw measurements (faded by age)
+                this.ctx.globalAlpha = 1.0;
                 measurements.forEach(m => {
                     if (m.time <= currentTime) {
                         const age = currentTime - m.time;
@@ -1090,12 +1415,31 @@
                     }
                 });
 
-                // Draw current ground truth
+                // Draw current positions (ALWAYS draw these regardless of measurement status)
                 this.ctx.globalAlpha = 1.0;
-                if (timeIndex < groundTruth.length) {
+                if (timeIndex < groundTruth.length && timeIndex < estimates.length) {
+                    // Current ground truth
                     this.ctx.fillStyle = '#0f0';
                     this.ctx.beginPath();
                     this.ctx.arc(groundTruth[timeIndex][0], groundTruth[timeIndex][1], 6, 0, 2 * Math.PI);
+                    this.ctx.fill();
+
+                    // Current error ellipse
+                    this.ctx.globalAlpha = 0.3;
+                    this.ctx.strokeStyle = 'rgba(0, 255, 255, 1)';
+                    this.ctx.lineWidth = 2;
+                    this.drawErrorEllipse(estimates[timeIndex][0], estimates[timeIndex][1], covariances[timeIndex]);
+                    this.ctx.stroke();
+
+                    this.ctx.globalAlpha = 0.05;
+                    this.ctx.fillStyle = 'rgba(0, 255, 255, 1)';
+                    this.ctx.fill();
+
+                    // Current Kalman estimate - ALWAYS VISIBLE
+                    this.ctx.globalAlpha = 1.0;
+                    this.ctx.fillStyle = '#0ff';
+                    this.ctx.beginPath();
+                    this.ctx.arc(estimates[timeIndex][0], estimates[timeIndex][1], 6, 0, 2 * Math.PI);
                     this.ctx.fill();
                 }
 
@@ -1218,18 +1562,20 @@
             updateInnovationAndGain(innovation, kalmanGain, inactive) {
                 const className = inactive ? 'matrix-cell inactive' : 'matrix-cell';
 
-                // Update innovation
+                // Update innovation - show values if available, otherwise show "--"
                 if (innovation) {
                     this.elements.innovationX.textContent = innovation[0].toFixed(2);
                     this.elements.innovationY.textContent = innovation[1].toFixed(2);
+                    this.elements.innovationX.className = className;
+                    this.elements.innovationY.className = className;
                 } else {
                     this.elements.innovationX.textContent = '--';
                     this.elements.innovationY.textContent = '--';
+                    this.elements.innovationX.className = 'matrix-cell inactive';
+                    this.elements.innovationY.className = 'matrix-cell inactive';
                 }
-                this.elements.innovationX.className = className;
-                this.elements.innovationY.className = className;
 
-                // Update Kalman gain
+                // Update Kalman gain - show values if available, otherwise show "--"
                 if (kalmanGain) {
                     this.elements.kalmanGainElements.forEach(({ element }, index) => {
                         const row = Math.floor(index / 2);
@@ -1240,7 +1586,7 @@
                 } else {
                     this.elements.kalmanGainElements.forEach(({ element }) => {
                         element.textContent = '--';
-                        element.className = className;
+                        element.className = 'matrix-cell inactive';
                     });
                 }
             }
@@ -1260,6 +1606,11 @@
             }
 
             initializeControls() {
+                // Trajectory selector
+                document.getElementById('trajectorySelect').addEventListener('change', (e) => {
+                    this.sim.setTrajectoryType(e.target.value);
+                });
+
                 // Time slider
                 const timeSlider = document.getElementById('timeSlider');
                 const timeValue = document.getElementById('timeValue');
@@ -1328,11 +1679,11 @@
                     ...config
                 };
 
+                // Current trajectory type
+                this.trajectoryType = 'figure8';
+
                 // EASILY SWAPPABLE COMPONENTS - Change these to swap implementations
-                this.trajectoryGenerator = new Figure8Generator({ 
-                    maxTime: this.config.maxTime, 
-                    scale: 150 
-                });
+                this.trajectoryGenerator = this.createTrajectoryGenerator();
                 
                 this.filter = new KalmanFilter2D({
                     dt: this.config.dt,
@@ -1375,11 +1726,43 @@
              * TO SWAP TRAJECTORY: Change this method
              */
             createTrajectoryGenerator() {
-                return new Figure8Generator({ 
+                const config = { 
                     maxTime: this.config.maxTime, 
                     scale: 150 
-                });
-                // TO SWAP: return new CircleGenerator({ maxTime: this.config.maxTime, scale: 150 });
+                };
+
+                switch (this.trajectoryType) {
+                    case 'figure8':
+                        return new Figure8Generator(config);
+                    case 'circle':
+                        return new CircleGenerator(config);
+                    case 'constantvelocity':
+                        return new ConstantVelocityGenerator(config);
+                    case 'constantacceleration':
+                        return new ConstantAccelerationGenerator(config);
+                    case 'sinewave':
+                        return new SineWaveGenerator(config);
+                    case 'parabolic':
+                        return new ParabolicGenerator(config);
+                    case 'square':
+                        return new SquareGenerator(config);
+                    case 'spiral':
+                        return new SpiralGenerator(config);
+                    case 'heart':
+                        return new HeartGenerator(config);
+                    case 'star':
+                        return new StarGenerator(config);
+                    case 'infinity':
+                        return new InfinityGenerator(config);
+                    case 'stepfunction':
+                        return new StepFunctionGenerator(config);
+                    case 'stopandgo':
+                        return new StopAndGoGenerator(config);
+                    case 'randomwalk':
+                        return new RandomWalkGenerator(config);
+                    default:
+                        return new Figure8Generator(config);
+                }
             }
 
             getMeasurementNoise() {
@@ -1403,6 +1786,11 @@
                 const measurementNoise = this.getMeasurementNoise();
                 let lastMeasurementTime = 0;
 
+                // Track last measurement-related values to preserve across prediction steps
+                let lastInnovation = null;
+                let lastKalmanGain = null;
+                let lastInnovationCovariance = null;
+
                 // Generate full simulation data
                 for (let t = 0; t <= this.config.maxTime; t += this.config.dt) {
                     // Generate ground truth
@@ -1420,6 +1808,17 @@
                         this.filter.update([[measurement[0]], [measurement[1]]]);
                         lastMeasurementTime = t;
                         hadMeasurement = true;
+
+                        // Store the new measurement-related values
+                        if (this.filter.lastInnovation) {
+                            lastInnovation = [...this.filter.lastInnovation.map(row => row[0])];
+                        }
+                        if (this.filter.lastKalmanGain) {
+                            lastKalmanGain = this.filter.lastKalmanGain.map(row => [...row]);
+                        }
+                        if (this.filter.lastInnovationCovariance) {
+                            lastInnovationCovariance = this.filter.lastInnovationCovariance.map(row => [...row]);
+                        }
                     }
 
                     // Store results
@@ -1430,12 +1829,9 @@
                     this.filterStates.push({
                         state: [...this.filter.getState().map(row => row[0])],
                         covariance: this.filter.covariance.map(row => [...row]),
-                        innovation: this.filter.lastInnovation ? 
-                            [...this.filter.lastInnovation.map(row => row[0])] : null,
-                        kalmanGain: this.filter.lastKalmanGain ? 
-                            this.filter.lastKalmanGain.map(row => [...row]) : null,
-                        innovationCovariance: this.filter.lastInnovationCovariance ? 
-                            this.filter.lastInnovationCovariance.map(row => [...row]) : null,
+                        innovation: lastInnovation, // Always the last known values
+                        kalmanGain: lastKalmanGain, // Always the last known values  
+                        innovationCovariance: lastInnovationCovariance, // Always the last known values
                         hadMeasurement: hadMeasurement
                     });
                 }
@@ -1478,6 +1874,17 @@
 
             setMatrixVisibility(visible) {
                 this.showMatrices = visible;
+                this.draw();
+            }
+
+            setTrajectoryType(trajectoryType) {
+                this.trajectoryType = trajectoryType;
+                this.trajectoryGenerator = this.createTrajectoryGenerator();
+                this.generateData();
+                this.currentTime = 0;
+                if (this.ui) {
+                    this.ui.updateTimeDisplay();
+                }
                 this.draw();
             }
 
