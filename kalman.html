@@ -1256,6 +1256,8 @@
                 this.scale = 1.0;
                 this.panX = 0.0; // in world units (same units as positions)
                 this.panY = 0.0;
+                this.onViewChange = null; // callback to request a redraw
+
                 // Drag state
                 this.isDragging = false;
                 this.lastMouseX = 0;
@@ -1290,6 +1292,7 @@
                     this.panY += dy / this.scale;
                     this.lastMouseX = e.clientX;
                     this.lastMouseY = e.clientY;
+                    this.requestRedraw();
                 }, { passive: false });
                 const endDrag = () => {
                     if (!this.isDragging) return;
@@ -1303,11 +1306,18 @@
                 });
             }
 
+            // Allow external code to register a redraw callback
+            setOnViewChange(cb) { this.onViewChange = cb; }
+            requestRedraw() {
+                if (typeof this.onViewChange === 'function') this.onViewChange();
+            }
+
             // Reset zoom/pan to defaults
             resetView() {
                 this.scale = 1.0;
                 this.panX = 0.0;
                 this.panY = 0.0;
+                this.requestRedraw();
             }
 
             // Keep the world point under the cursor stationary while zooming
@@ -1323,6 +1333,7 @@
                 this.panX = (canvasX - cx) / newScale - wx;
                 this.panY = (canvasY - cy) / newScale - wy;
                 this.scale = newScale;
+                this.requestRedraw();
             }
 
             // Attach double-click handler for reset
@@ -1948,6 +1959,7 @@
                 this.ui = new UIController(this);
                 this.draw();
                 this.visualization.initializeResetHandler();
+                this.visualization.setOnViewChange(() => this.draw()); // redraw even when paused
                 this.animate();
             }
         }
