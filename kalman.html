@@ -14,7 +14,7 @@
         .main-container {
             display: flex;
             gap: 20px;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             align-items: flex-start;
         }
@@ -29,13 +29,20 @@
         }
         .controls {
             max-width: 800px;
-            margin: 0 auto;
+            margin: 0 auto 20px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .system-matrices {
+            max-width: 1200px;
+            margin: 0 auto 20px;
             padding: 20px;
             background: #2a2a2a;
             border-radius: 8px;
         }
         .state-panel {
-            width: 320px;
+            width: 350px;
             background: #2a2a2a;
             border-radius: 8px;
             padding: 20px;
@@ -44,6 +51,94 @@
             max-height: 90vh;
             overflow-y: auto;
         }
+
+        /* Matrix Display Styles */
+        .matrix-container {
+            display: inline-block;
+            position: relative;
+            margin: 10px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .matrix-brackets {
+            position: relative;
+            display: inline-block;
+        }
+
+        .matrix-brackets::before,
+        .matrix-brackets::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            border: 2px solid #4af;
+            border-left: none;
+            border-right: none;
+        }
+
+        .matrix-brackets::before {
+            left: -10px;
+            border-left: 2px solid #4af;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .matrix-brackets::after {
+            right: -10px;
+            border-right: 2px solid #4af;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 6px 10px;
+            padding: 8px 15px;
+            align-items: center;
+            justify-items: center;
+        }
+
+        .matrix-2x2 { grid-template-columns: repeat(2, 1fr); }
+        .matrix-2x6 { grid-template-columns: repeat(6, 1fr); }
+        .matrix-6x2 { grid-template-columns: repeat(2, 1fr); }
+        .matrix-6x6 { grid-template-columns: repeat(6, 1fr); }
+
+        .matrix-cell {
+            font-size: 10px;
+            color: #0ff;
+            text-align: center;
+            min-width: 42px;
+            white-space: nowrap;
+        }
+
+        .matrix-cell.inactive {
+            color: #666;
+        }
+
+        .matrix-title {
+            color: #4af;
+            font-size: 13px;
+            margin-bottom: 5px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        .matrices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            margin-top: 15px;
+        }
+
+        .matrix-display {
+            text-align: center;
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
         h2[data-tooltip]:hover::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -150,20 +245,6 @@
         .state-value.inactive {
             color: #666;
         }
-        .matrix-row {
-            display: flex;
-            gap: 10px;
-            margin: 2px 0;
-            font-size: 11px;
-        }
-        .matrix-value {
-            width: 70px;
-            text-align: right;
-            color: #0ff;
-        }
-        .matrix-value.inactive {
-            color: #666;
-        }
         .slider-container label {
             cursor: help;
             position: relative;
@@ -217,7 +298,7 @@
         }
         .legend {
             margin: 20px auto 10px;
-            max-width: 1200px;
+            max-width: 1400px;
             display: flex;
             justify-content: center;
             gap: 30px;
@@ -243,6 +324,44 @@
         }
         button:hover {
             background: #6cf;
+        }
+        .toggle-section {
+            color: #4af;
+            cursor: pointer;
+            padding: 10px;
+            background: #333;
+            border-radius: 4px;
+            text-align: center;
+            margin: 15px 0;
+            user-select: none;
+        }
+        .toggle-section:hover {
+            background: #444;
+        }
+        .matrices-section {
+            display: none;
+            margin-top: 15px;
+        }
+        .matrices-section.visible {
+            display: block;
+        }
+        .equation-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            border-left: 3px solid #4af;
+        }
+        .eq-label {
+            color: #4af;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .equation-line {
+            font-family: 'Courier New', monospace;
+            color: #0ff;
+            margin: 4px 0;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -336,16 +455,15 @@
 
             <div class="state-section">
                 <h3 data-tooltip="The covariance matrix quantifies the uncertainty in position estimates. Larger values mean less confidence. The ellipse visualization is derived from this matrix.">Position Covariance P</h3>
-                <div class="state-row">
-                    <span class="state-label" data-tooltip="2x2 matrix showing uncertainty in position estimates. Diagonal values are variances (σ²) for X and Y. Off-diagonal values show correlation between X and Y errors.">Covariance Matrix:</span>
-                </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="p00">0.00</span>
-                    <span class="matrix-value" id="p01">0.00</span>
-                </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="p10">0.00</span>
-                    <span class="matrix-value" id="p11">0.00</span>
+                <div class="matrix-container">
+                    <div class="matrix-brackets">
+                        <div class="matrix-grid matrix-2x2">
+                            <div class="matrix-cell" id="p00">0.00</div>
+                            <div class="matrix-cell" id="p01">0.00</div>
+                            <div class="matrix-cell" id="p10">0.00</div>
+                            <div class="matrix-cell" id="p11">0.00</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -367,110 +485,125 @@
 
             <div class="state-section">
                 <h3 data-tooltip="The innovation (or residual) is the difference between what was measured and what the filter predicted. Large innovations indicate surprising measurements.">Innovation (Residual)</h3>
-                <div class="state-row">
-                    <span class="state-label" data-tooltip="Difference between measured and predicted X position. Large values indicate the measurement surprised the filter.">Innovation X:</span>
-                    <span class="state-value" id="innovation-x">--</span>
-                </div>
-                <div class="state-row">
-                    <span class="state-label" data-tooltip="Difference between measured and predicted Y position. Shows how much the measurement differs from expectation.">Innovation Y:</span>
-                    <span class="state-value" id="innovation-y">--</span>
+                <div class="matrix-container">
+                    <div class="matrix-brackets">
+                        <div class="matrix-grid matrix-2x1" style="grid-template-columns: 1fr;">
+                            <div class="matrix-cell" id="innovation-x">--</div>
+                            <div class="matrix-cell" id="innovation-y">--</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="state-section">
                 <h3 data-tooltip="The Kalman gain determines how much the filter trusts new measurements versus its predictions. Higher values mean more trust in measurements, lower values mean more trust in the model.">Kalman Gain K</h3>
-                <div class="state-row">
-                    <span class="state-label" data-tooltip="6×2 matrix determining how much to adjust each state variable based on measurement error. Rows correspond to: position, velocity, and acceleration updates.">Gain Matrix:</span>
+                <div class="matrix-container">
+                    <div class="matrix-brackets">
+                        <div class="matrix-grid matrix-6x2">
+                            <div class="matrix-cell" id="k00">--</div>
+                            <div class="matrix-cell" id="k01">--</div>
+                            <div class="matrix-cell" id="k10">--</div>
+                            <div class="matrix-cell" id="k11">--</div>
+                            <div class="matrix-cell" id="k20">--</div>
+                            <div class="matrix-cell" id="k21">--</div>
+                            <div class="matrix-cell" id="k30">--</div>
+                            <div class="matrix-cell" id="k31">--</div>
+                            <div class="matrix-cell" id="k40">--</div>
+                            <div class="matrix-cell" id="k41">--</div>
+                            <div class="matrix-cell" id="k50">--</div>
+                            <div class="matrix-cell" id="k51">--</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="k00">--</span>
-                    <span class="matrix-value" id="k01">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Matrices Section - Moved Below Main Container -->
+    <div class="system-matrices">
+        <div class="toggle-section" id="toggleMatrices">
+            Show System Matrices & Equations ▼
+        </div>
+
+        <div class="matrices-section" id="matricesSection">
+            <div class="matrices-grid">
+                <div class="matrix-display">
+                    <div class="matrix-title">State Transition F (6×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Predicts next state from current state</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-F" class="matrix-grid matrix-6x6"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="k10">--</span>
-                    <span class="matrix-value" id="k11">--</span>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Measurement H (2×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Maps state to expected measurement (extracts position)</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-H" class="matrix-grid matrix-2x6"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="k20">--</span>
-                    <span class="matrix-value" id="k21">--</span>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Process Noise Q (6×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Uncertainty added during prediction</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-Q" class="matrix-grid matrix-6x6"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="k30">--</span>
-                    <span class="matrix-value" id="k31">--</span>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Measurement Noise R (2×2)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Expected measurement uncertainty</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-R" class="matrix-grid matrix-2x2"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="k40">--</span>
-                    <span class="matrix-value" id="k41">--</span>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Full Covariance P (6×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Uncertainty in all state variables</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-P-full" class="matrix-grid matrix-6x6"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="matrix-row">
-                    <span class="matrix-value" id="k50">--</span>
-                    <span class="matrix-value" id="k51">--</span>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Innovation Covariance S (2×2)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">S = H×P×H<sup>T</sup> + R (measurement prediction uncertainty)</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-S" class="matrix-grid matrix-2x2"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="toggle-section" id="toggleMatrices">
-                Show System Matrices & Equations ▼
-            </div>
+            <div class="state-section">
+                <h3 data-tooltip="The mathematical operations performed during prediction and update steps">Kalman Equations</h3>
 
-            <div class="matrices-section" id="matricesSection">
-                <div class="state-section">
-                    <h3 data-tooltip="The mathematical matrices that define the Kalman filter's behavior">System Matrices</h3>
-
-                    <div class="matrix-display">
-                        <div class="matrix-title">State Transition F (6×6)</div>
-                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Predicts next state from current state</div>
-                        <div id="matrix-F" class="matrix-grid"></div>
-                    </div>
-
-                    <div class="matrix-display">
-                        <div class="matrix-title">Measurement H (2×6)</div>
-                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Maps state to expected measurement (extracts position)</div>
-                        <div id="matrix-H" class="matrix-grid"></div>
-                    </div>
-
-                    <div class="matrix-display">
-                        <div class="matrix-title">Process Noise Q (6×6)</div>
-                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Uncertainty added during prediction</div>
-                        <div id="matrix-Q" class="matrix-grid"></div>
-                    </div>
-
-                    <div class="matrix-display">
-                        <div class="matrix-title">Measurement Noise R (2×2)</div>
-                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Expected measurement uncertainty</div>
-                        <div id="matrix-R" class="matrix-grid"></div>
-                    </div>
+                <div class="equation-section">
+                    <div class="eq-label">Prediction Step (every 0.05s):</div>
+                    <div class="equation-line">x̂ₖ₊₁|ₖ = F × x̂ₖ|ₖ</div>
+                    <div class="equation-line">Pₖ₊₁|ₖ = F × Pₖ|ₖ × F<sup>T</sup> + Q</div>
                 </div>
 
-                <div class="state-section">
-                    <h3 data-tooltip="The full 6×6 covariance matrix showing uncertainty in all state variables">Full Covariance P (6×6)</h3>
-                    <div class="matrix-display">
-                        <div id="matrix-P-full" class="matrix-grid"></div>
-                    </div>
-                </div>
-
-                <div class="state-section">
-                    <h3 data-tooltip="The mathematical operations performed during prediction and update steps">Kalman Equations</h3>
-
-                    <div class="equation-section">
-                        <div class="eq-label">Prediction Step (every 0.05s):</div>
-                        <div class="equation-line">x̂ₖ₊₁|ₖ = F × x̂ₖ|ₖ</div>
-                        <div class="equation-line">Pₖ₊₁|ₖ = F × Pₖ|ₖ × Fᵀ + Q</div>
-                    </div>
-
-                    <div class="equation-section" id="updateEquations">
-                        <div class="eq-label">Update Step (when measurement arrives):</div>
-                        <div class="equation-line">yₖ = zₖ - H × x̂ₖ|ₖ₋₁ (innovation)</div>
-                        <div class="equation-line">Sₖ = H × Pₖ|ₖ₋₁ × Hᵀ + R</div>
-                        <div class="equation-line">Kₖ = Pₖ|ₖ₋₁ × Hᵀ × Sₖ⁻¹</div>
-                        <div class="equation-line">x̂ₖ|ₖ = x̂ₖ|ₖ₋₁ + Kₖ × yₖ</div>
-                        <div class="equation-line">Pₖ|ₖ = (I - Kₖ × H) × Pₖ|ₖ₋₁</div>
-                    </div>
-
-                    <div class="equation-section">
-                        <div class="eq-label">Current Innovation Covariance S (2×2):</div>
-                        <div style="font-size: 9px; color: #888; margin: 4px 0;">S = H×P×Hᵀ + R (measurement prediction uncertainty)</div>
-                        <div id="matrix-S" class="matrix-grid"></div>
-                    </div>
+                <div class="equation-section" id="updateEquations">
+                    <div class="eq-label">Update Step (when measurement arrives):</div>
+                    <div class="equation-line">yₖ = zₖ - H × x̂ₖ|ₖ₋₁ (innovation)</div>
+                    <div class="equation-line">Sₖ = H × Pₖ|ₖ₋₁ × H<sup>T</sup> + R</div>
+                    <div class="equation-line">Kₖ = Pₖ|ₖ₋₁ × H<sup>T</sup> × Sₖ⁻¹</div>
+                    <div class="equation-line">x̂ₖ|ₖ = x̂ₖ|ₖ₋₁ + Kₖ × yₖ</div>
+                    <div class="equation-line">Pₖ|ₖ = (I - Kₖ × H) × Pₖ|ₖ₋₁</div>
                 </div>
             </div>
         </div>
@@ -663,6 +796,28 @@
             ctx.restore();
         }
 
+        // Function to display a matrix in HTML with proper formatting
+        function displayMatrix(matrix, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+
+            matrix.forEach(row => {
+                row.forEach(val => {
+                    const cell = document.createElement('div');
+                    cell.className = 'matrix-cell';
+                    const num = typeof val === 'number' ? val : 0;
+                    if (Math.abs(num) < 0.001 && num !== 0) {
+                        cell.textContent = num.toExponential(1);
+                    } else if (Math.abs(num) < 0.01) {
+                        cell.textContent = num.toFixed(4);
+                    } else {
+                        cell.textContent = num.toFixed(3);
+                    }
+                    container.appendChild(cell);
+                });
+            });
+        }
+
         // Main visualization
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -752,27 +907,6 @@
             }
         }
 
-        // Function to display a matrix in HTML
-        function displayMatrix(matrix, elementId) {
-            const container = document.getElementById(elementId);
-            container.innerHTML = '';
-
-            matrix.forEach(row => {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'matrix-row-display';
-
-                row.forEach(val => {
-                    const cell = document.createElement('div');
-                    cell.className = 'matrix-cell';
-                    const num = typeof val === 'number' ? val : 0;
-                    cell.textContent = Math.abs(num) < 0.001 && num !== 0 ? num.toExponential(1) : num.toFixed(3);
-                    rowDiv.appendChild(cell);
-                });
-
-                container.appendChild(rowDiv);
-            });
-        }
-
         function updateStateDisplay() {
             const timeIndex = Math.floor(currentTime / dt);
             if (timeIndex >= filterStates.length) return;
@@ -803,7 +937,7 @@
             document.getElementById('std-x').textContent = Math.sqrt(state.P[0][0]).toFixed(2);
             document.getElementById('std-y').textContent = Math.sqrt(state.P[1][1]).toFixed(2);
 
-            // Update measurement indicator and innovation
+            // Update measurement indicator and innovation/Kalman gain
             const measurementStatus = document.getElementById('measurementStatus');
             if (state.hadMeasurement) {
                 measurementStatus.textContent = 'Measurement Update';
@@ -815,8 +949,8 @@
                     const innovY = document.getElementById('innovation-y');
                     innovX.textContent = state.innovation[0].toFixed(2);
                     innovY.textContent = state.innovation[1].toFixed(2);
-                    innovX.className = 'state-value';
-                    innovY.className = 'state-value';
+                    innovX.className = 'matrix-cell';
+                    innovY.className = 'matrix-cell';
                 }
 
                 if (state.kalmanGain) {
@@ -838,7 +972,7 @@
                     kElements.forEach(([id, value]) => {
                         const element = document.getElementById(id);
                         element.textContent = value.toFixed(3);
-                        element.className = 'matrix-value';
+                        element.className = 'matrix-cell';
                     });
                 }
             } else {
@@ -851,11 +985,13 @@
                     const innovY = document.getElementById('innovation-y');
                     innovX.textContent = state.innovation[0].toFixed(2);
                     innovY.textContent = state.innovation[1].toFixed(2);
-                    innovX.className = 'state-value inactive';
-                    innovY.className = 'state-value inactive';
+                    innovX.className = 'matrix-cell inactive';
+                    innovY.className = 'matrix-cell inactive';
                 } else {
                     document.getElementById('innovation-x').textContent = '--';
                     document.getElementById('innovation-y').textContent = '--';
+                    document.getElementById('innovation-x').className = 'matrix-cell inactive';
+                    document.getElementById('innovation-y').className = 'matrix-cell inactive';
                 }
 
                 if (state.kalmanGain) {
@@ -867,17 +1003,23 @@
                         ['k20', state.kalmanGain[2][0]],
                         ['k21', state.kalmanGain[2][1]],
                         ['k30', state.kalmanGain[3][0]],
-                        ['k31', state.kalmanGain[3][1]]
+                        ['k31', state.kalmanGain[3][1]],
+                        ['k40', state.kalmanGain[4][0]],
+                        ['k41', state.kalmanGain[4][1]],
+                        ['k50', state.kalmanGain[5][0]],
+                        ['k51', state.kalmanGain[5][1]]
                     ];
 
                     kElements.forEach(([id, value]) => {
                         const element = document.getElementById(id);
                         element.textContent = value.toFixed(3);
-                        element.className = 'matrix-value inactive';
+                        element.className = 'matrix-cell inactive';
                     });
                 } else {
                     ['k00', 'k01', 'k10', 'k11', 'k20', 'k21', 'k30', 'k31', 'k40', 'k41', 'k50', 'k51'].forEach(id => {
-                        document.getElementById(id).textContent = '--';
+                        const element = document.getElementById(id);
+                        element.textContent = '--';
+                        element.className = 'matrix-cell inactive';
                     });
                 }
             }
@@ -894,7 +1036,7 @@
                 if (state.innovationCovariance) {
                     displayMatrix(state.innovationCovariance, 'matrix-S');
                 } else {
-                    document.getElementById('matrix-S').innerHTML = '<div style="color: #666;">Not computed (prediction only)</div>';
+                    document.getElementById('matrix-S').innerHTML = '<div class="matrix-cell inactive">Not computed (prediction only)</div>';
                 }
             }
         }
