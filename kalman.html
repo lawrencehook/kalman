@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Kalman Filter Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            align-items: flex-start;
+        }
+        .viz-container {
+            flex: 1;
+        }
+        #canvas {
+            border: 1px solid #444;
+            background: #0a0a0a;
+            display: block;
+            margin: 20px auto;
+        }
+        .controls {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .state-panel {
+            width: 320px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        h2[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            border: 1px solid #4af;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 11px;
+            line-height: 1.4;
+            width: 280px;
+            z-index: 100;
+            pointer-events: none;
+            margin-top: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            font-weight: normal;
+            font-family: Arial, sans-serif;
+        }
+        h2[data-tooltip] {
+            position: relative;
+        }
+        .state-panel h2:hover::after {
+            content: "The Kalman filter optimally combines noisy measurements with a motion model to estimate the true state. It balances trust between predictions and measurements based on their relative uncertainties.";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            border: 1px solid #4af;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 11px;
+            line-height: 1.4;
+            width: 280px;
+            z-index: 100;
+            pointer-events: none;
+            margin-top: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            font-weight: normal;
+            font-family: Arial, sans-serif;
+        }
+        .state-section {
+            margin-bottom: 20px;
+        }
+        .state-section h3 {
+            color: #4af;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            cursor: help;
+            position: relative;
+        }
+        .state-section h3:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: #1a1a1a;
+            border: 1px solid #4af;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 11px;
+            line-height: 1.4;
+            width: 280px;
+            z-index: 100;
+            pointer-events: none;
+            margin-bottom: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            font-weight: normal;
+        }
+        .state-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        .state-label {
+            color: #aaa;
+            position: relative;
+            cursor: help;
+        }
+        .state-label:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: #1a1a1a;
+            border: 1px solid #4af;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 11px;
+            line-height: 1.4;
+            width: 250px;
+            z-index: 100;
+            pointer-events: none;
+            margin-bottom: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        .state-value {
+            color: #0ff;
+            text-align: right;
+        }
+        .state-value.inactive {
+            color: #666;
+        }
+        .matrix-row {
+            display: flex;
+            gap: 10px;
+            margin: 2px 0;
+            font-size: 11px;
+        }
+        .matrix-value {
+            width: 70px;
+            text-align: right;
+            color: #0ff;
+        }
+        .matrix-value.inactive {
+            color: #666;
+        }
+        .slider-container label {
+            cursor: help;
+            position: relative;
+        }
+        .slider-container label:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: #1a1a1a;
+            border: 1px solid #4af;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 11px;
+            line-height: 1.4;
+            width: 300px;
+            z-index: 100;
+            pointer-events: none;
+            margin-bottom: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        .measurement-indicator {
+            padding: 5px;
+            margin: 10px 0;
+            background: #3a2a4a;
+            border-radius: 4px;
+            text-align: center;
+            color: #f0f;
+        }
+        .no-measurement {
+            background: #2a3a3a;
+            color: #888;
+        }
+        .slider-container {
+            margin: 15px 0;
+        }
+        label {
+            display: inline-block;
+            width: 200px;
+            font-size: 14px;
+        }
+        input[type="range"] {
+            width: 300px;
+            vertical-align: middle;
+        }
+        .value {
+            display: inline-block;
+            width: 60px;
+            text-align: right;
+            color: #4af;
+        }
+        .legend {
+            margin: 20px auto 10px;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 3px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            background: #4af;
+            border: none;
+            border-radius: 4px;
+            color: #000;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #6cf;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">2D Kalman Filter - Figure 8 Tracking</h1>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #0f0;"></div>
+            <span>Ground Truth</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f0f;"></div>
+            <span>Measurements</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #0ff; width: 6px; height: 6px; border-radius: 3px;"></div>
+            <span>Kalman Estimates</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: rgba(0,255,255,0.3);"></div>
+            <span>95% Confidence</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="viz-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+
+            <div class="controls">
+                <div class="slider-container">
+                    <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurements arrive at 10Hz (every 0.1s). The object completes 3 figure-8 patterns over 30 seconds.">Time:</label>
+                    <input type="range" id="timeSlider" min="0" max="100" value="0" step="1">
+                    <span class="value" id="timeValue">0.00s</span>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Standard deviation of noise added to position measurements. Higher values make measurements less reliable, causing the filter to trust its model more.">Measurement Noise (σ):</label>
+                    <input type="range" id="measurementNoise" min="1" max="50" value="15" step="1">
+                    <span class="value" id="measurementNoiseValue">15</span>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Uncertainty in the motion model. Higher values mean the filter expects more random accelerations, making it trust measurements more and predictions less.">Process Noise:</label>
+                    <input type="range" id="processNoise" min="0.1" max="5" value="1" step="0.1">
+                    <span class="value" id="processNoiseValue">1.0</span>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <button id="playBtn">Play/Pause</button>
+                    <button id="stepBtn">Step</button>
+                    <button id="resetBtn">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="state-panel">
+            <h2 style="color: #4af; text-align: center; margin-top: 0; cursor: help;" data-tooltip="The Kalman filter optimally combines noisy measurements with a motion model to estimate the true state. It balances trust between predictions and measurements based on their relative uncertainties.">Kalman Filter State</h2>
+
+            <div id="measurementStatus" class="measurement-indicator no-measurement">
+                No Measurement
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The filter's current estimate of the object's state, including position, velocity, and acceleration in both X and Y dimensions.">State Vector x̂</h3>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated X position of the object in pixels from center">Position X:</span>
+                    <span class="state-value" id="state-x">0.00</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated Y position of the object in pixels from center">Position Y:</span>
+                    <span class="state-value" id="state-y">0.00</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated velocity in X direction (pixels per second)">Velocity X:</span>
+                    <span class="state-value" id="state-vx">0.00</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated velocity in Y direction (pixels per second)">Velocity Y:</span>
+                    <span class="state-value" id="state-vy">0.00</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated acceleration in X direction (pixels per second²)">Accel X:</span>
+                    <span class="state-value" id="state-ax">0.00</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated acceleration in Y direction (pixels per second²)">Accel Y:</span>
+                    <span class="state-value" id="state-ay">0.00</span>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The covariance matrix quantifies the uncertainty in position estimates. Larger values mean less confidence. The ellipse visualization is derived from this matrix.">Position Covariance P</h3>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="2x2 matrix showing uncertainty in position estimates. Diagonal values are variances (σ²) for X and Y. Off-diagonal values show correlation between X and Y errors.">Covariance Matrix:</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="p00">0.00</span>
+                    <span class="matrix-value" id="p01">0.00</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="p10">0.00</span>
+                    <span class="matrix-value" id="p11">0.00</span>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="Metrics comparing the filter's estimates to ground truth and showing the filter's confidence levels.">Error Metrics</h3>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Euclidean distance between the Kalman estimate and ground truth position">Position Error:</span>
+                    <span class="state-value" id="pos-error">0.00</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Square root of X variance from covariance matrix. Represents 1-sigma uncertainty in X direction">Std Dev X:</span>
+                    <span class="state-value" id="std-x">0.00</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Square root of Y variance from covariance matrix. Represents 1-sigma uncertainty in Y direction">Std Dev Y:</span>
+                    <span class="state-value" id="std-y">0.00</span>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The innovation (or residual) is the difference between what was measured and what the filter predicted. Large innovations indicate surprising measurements.">Innovation (Residual)</h3>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Difference between measured and predicted X position. Large values indicate the measurement surprised the filter.">Innovation X:</span>
+                    <span class="state-value" id="innovation-x">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Difference between measured and predicted Y position. Shows how much the measurement differs from expectation.">Innovation Y:</span>
+                    <span class="state-value" id="innovation-y">--</span>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The Kalman gain determines how much the filter trusts new measurements versus its predictions. Higher values mean more trust in measurements, lower values mean more trust in the model.">Kalman Gain K</h3>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="6×2 matrix determining how much to adjust each state variable based on measurement error. Rows correspond to: position, velocity, and acceleration updates.">Gain Matrix:</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="k00">--</span>
+                    <span class="matrix-value" id="k01">--</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="k10">--</span>
+                    <span class="matrix-value" id="k11">--</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="k20">--</span>
+                    <span class="matrix-value" id="k21">--</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="k30">--</span>
+                    <span class="matrix-value" id="k31">--</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="k40">--</span>
+                    <span class="matrix-value" id="k41">--</span>
+                </div>
+                <div class="matrix-row">
+                    <span class="matrix-value" id="k50">--</span>
+                    <span class="matrix-value" id="k51">--</span>
+                </div>
+            </div>
+
+            <div class="toggle-section" id="toggleMatrices">
+                Show System Matrices & Equations ▼
+            </div>
+
+            <div class="matrices-section" id="matricesSection">
+                <div class="state-section">
+                    <h3 data-tooltip="The mathematical matrices that define the Kalman filter's behavior">System Matrices</h3>
+
+                    <div class="matrix-display">
+                        <div class="matrix-title">State Transition F (6×6)</div>
+                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Predicts next state from current state</div>
+                        <div id="matrix-F" class="matrix-grid"></div>
+                    </div>
+
+                    <div class="matrix-display">
+                        <div class="matrix-title">Measurement H (2×6)</div>
+                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Maps state to expected measurement (extracts position)</div>
+                        <div id="matrix-H" class="matrix-grid"></div>
+                    </div>
+
+                    <div class="matrix-display">
+                        <div class="matrix-title">Process Noise Q (6×6)</div>
+                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Uncertainty added during prediction</div>
+                        <div id="matrix-Q" class="matrix-grid"></div>
+                    </div>
+
+                    <div class="matrix-display">
+                        <div class="matrix-title">Measurement Noise R (2×2)</div>
+                        <div style="font-size: 9px; color: #888; margin-bottom: 4px;">Expected measurement uncertainty</div>
+                        <div id="matrix-R" class="matrix-grid"></div>
+                    </div>
+                </div>
+
+                <div class="state-section">
+                    <h3 data-tooltip="The full 6×6 covariance matrix showing uncertainty in all state variables">Full Covariance P (6×6)</h3>
+                    <div class="matrix-display">
+                        <div id="matrix-P-full" class="matrix-grid"></div>
+                    </div>
+                </div>
+
+                <div class="state-section">
+                    <h3 data-tooltip="The mathematical operations performed during prediction and update steps">Kalman Equations</h3>
+
+                    <div class="equation-section">
+                        <div class="eq-label">Prediction Step (every 0.05s):</div>
+                        <div class="equation-line">x̂ₖ₊₁|ₖ = F × x̂ₖ|ₖ</div>
+                        <div class="equation-line">Pₖ₊₁|ₖ = F × Pₖ|ₖ × Fᵀ + Q</div>
+                    </div>
+
+                    <div class="equation-section" id="updateEquations">
+                        <div class="eq-label">Update Step (when measurement arrives):</div>
+                        <div class="equation-line">yₖ = zₖ - H × x̂ₖ|ₖ₋₁ (innovation)</div>
+                        <div class="equation-line">Sₖ = H × Pₖ|ₖ₋₁ × Hᵀ + R</div>
+                        <div class="equation-line">Kₖ = Pₖ|ₖ₋₁ × Hᵀ × Sₖ⁻¹</div>
+                        <div class="equation-line">x̂ₖ|ₖ = x̂ₖ|ₖ₋₁ + Kₖ × yₖ</div>
+                        <div class="equation-line">Pₖ|ₖ = (I - Kₖ × H) × Pₖ|ₖ₋₁</div>
+                    </div>
+
+                    <div class="equation-section">
+                        <div class="eq-label">Current Innovation Covariance S (2×2):</div>
+                        <div style="font-size: 9px; color: #888; margin: 4px 0;">S = H×P×Hᵀ + R (measurement prediction uncertainty)</div>
+                        <div id="matrix-S" class="matrix-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Matrix operations
+        class Matrix {
+            static multiply(A, B) {
+                const m = A.length, n = A[0].length, p = B[0].length;
+                const C = Array(m).fill().map(() => Array(p).fill(0));
+                for (let i = 0; i < m; i++) {
+                    for (let j = 0; j < p; j++) {
+                        for (let k = 0; k < n; k++) {
+                            C[i][j] += A[i][k] * B[k][j];
+                        }
+                    }
+                }
+                return C;
+            }
+
+            static transpose(A) {
+                return A[0].map((_, i) => A.map(row => row[i]));
+            }
+
+            static add(A, B) {
+                return A.map((row, i) => row.map((val, j) => val + B[i][j]));
+            }
+
+            static subtract(A, B) {
+                return A.map((row, i) => row.map((val, j) => val - B[i][j]));
+            }
+
+            static inverse2x2(A) {
+                const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+                return [
+                    [A[1][1] / det, -A[0][1] / det],
+                    [-A[1][0] / det, A[0][0] / det]
+                ];
+            }
+
+            static identity(n) {
+                return Array(n).fill().map((_, i) =>
+                    Array(n).fill().map((_, j) => i === j ? 1 : 0)
+                );
+            }
+        }
+
+        // Kalman Filter implementation
+        class KalmanFilter2D {
+            constructor(dt, measurementNoise, processNoise) {
+                this.dt = dt;
+
+                // State vector: [x, y, vx, vy, ax, ay]
+                this.x = [[0], [0], [0], [0], [0], [0]];
+
+                // State transition matrix (constant acceleration model)
+                this.F = [
+                    [1, 0, dt, 0, 0.5*dt*dt, 0],
+                    [0, 1, 0, dt, 0, 0.5*dt*dt],
+                    [0, 0, 1, 0, dt, 0],
+                    [0, 0, 0, 1, 0, dt],
+                    [0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 1]
+                ];
+
+                // Measurement matrix (we only measure position)
+                this.H = [
+                    [1, 0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0]
+                ];
+
+                // Process covariance
+                this.P = Matrix.identity(6).map(row => row.map(val => val * 100));
+
+                // Process noise covariance
+                const q = processNoise;
+                this.Q = [
+                    [dt**4/4 * q, 0, dt**3/2 * q, 0, dt**2/2 * q, 0],
+                    [0, dt**4/4 * q, 0, dt**3/2 * q, 0, dt**2/2 * q],
+                    [dt**3/2 * q, 0, dt**2 * q, 0, dt * q, 0],
+                    [0, dt**3/2 * q, 0, dt**2 * q, 0, dt * q],
+                    [dt**2/2 * q, 0, dt * q, 0, q, 0],
+                    [0, dt**2/2 * q, 0, dt * q, 0, q]
+                ];
+
+                // Measurement noise covariance
+                this.R = [
+                    [measurementNoise * measurementNoise, 0],
+                    [0, measurementNoise * measurementNoise]
+                ];
+
+                // Store latest values for display
+                this.innovation = null;
+                this.kalmanGain = null;
+                this.innovationCovariance = null;
+            }
+
+            predict() {
+                // Predict state
+                this.x = Matrix.multiply(this.F, this.x);
+
+                // Predict covariance
+                const FP = Matrix.multiply(this.F, this.P);
+                const FPFt = Matrix.multiply(FP, Matrix.transpose(this.F));
+                this.P = Matrix.add(FPFt, this.Q);
+
+                // Clear measurement-related values after prediction
+                this.innovation = null;
+                this.kalmanGain = null;
+                this.innovationCovariance = null;
+            }
+
+            update(z) {
+                // Innovation
+                const y = Matrix.subtract(z, Matrix.multiply(this.H, this.x));
+                this.innovation = y;
+
+                // Innovation covariance
+                const HP = Matrix.multiply(this.H, this.P);
+                const HPHt = Matrix.multiply(HP, Matrix.transpose(this.H));
+                const S = Matrix.add(HPHt, this.R);
+                this.innovationCovariance = S;
+
+                // Kalman gain
+                const PHt = Matrix.multiply(this.P, Matrix.transpose(this.H));
+                const K = Matrix.multiply(PHt, Matrix.inverse2x2(S));
+                this.kalmanGain = K;
+
+                // Update state
+                const Ky = Matrix.multiply(K, y);
+                this.x = Matrix.add(this.x, Ky);
+
+                // Update covariance
+                const KH = Matrix.multiply(K, this.H);
+                const I_KH = Matrix.subtract(Matrix.identity(6), KH);
+                this.P = Matrix.multiply(I_KH, this.P);
+            }
+
+            getPositionCovariance() {
+                // Extract 2x2 position covariance
+                return [
+                    [this.P[0][0], this.P[0][1]],
+                    [this.P[1][0], this.P[1][1]]
+                ];
+            }
+        }
+
+        // Generate figure 8 trajectory
+        function generateFigure8(t) {
+            const scale = 150;
+            const x = scale * Math.sin(t);
+            const y = scale * Math.sin(t) * Math.cos(t);
+            return [x, y];
+        }
+
+        // Generate noisy measurement
+        function addNoise(pos, sigma) {
+            const noise = () => (Math.random() - 0.5) * 2 * sigma;
+            return [pos[0] + noise(), pos[1] + noise()];
+        }
+
+        // Draw error ellipse
+        function drawErrorEllipse(ctx, x, y, cov, confidence = 0.95) {
+            // Chi-squared value for 95% confidence in 2D
+            const chi2 = 5.991; // For 95% confidence
+
+            // Eigenvalue decomposition (simplified for 2x2)
+            const a = cov[0][0];
+            const b = cov[0][1];
+            const c = cov[1][1];
+
+            const trace = a + c;
+            const det = a * c - b * b;
+            const disc = Math.sqrt(Math.max(0, trace * trace - 4 * det));
+
+            const lambda1 = (trace + disc) / 2;
+            const lambda2 = (trace - disc) / 2;
+
+            const angle = Math.atan2(lambda1 - a, b);
+
+            const width = 2 * Math.sqrt(Math.max(0, lambda1 * chi2));
+            const height = 2 * Math.sqrt(Math.max(0, lambda2 * chi2));
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, width, height, 0, 0, 2 * Math.PI);
+            ctx.restore();
+        }
+
+        // Main visualization
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let playing = false;
+        let currentTime = 0;
+        const maxTime = 30; // seconds
+        const dt = 0.05; // 20 Hz for filter
+        const measurementRate = 0.1; // 10 Hz for measurements
+
+        let groundTruth = [];
+        let measurements = [];
+        let estimates = [];
+        let covariances = [];
+        let filterStates = [];
+        let lastInnovation = null;
+        let lastKalmanGain = null;
+        let lastInnovationCovariance = null;
+        let systemMatrices = null;
+
+        function generateData() {
+            const measurementNoise = parseFloat(document.getElementById('measurementNoise').value);
+            const processNoise = parseFloat(document.getElementById('processNoise').value);
+
+            groundTruth = [];
+            measurements = [];
+            estimates = [];
+            covariances = [];
+            filterStates = [];
+            lastInnovation = null;
+            lastKalmanGain = null;
+            lastInnovationCovariance = null;
+
+            const kf = new KalmanFilter2D(dt, measurementNoise, processNoise);
+
+            // Store system matrices
+            systemMatrices = {
+                F: kf.F,
+                H: kf.H,
+                Q: kf.Q,
+                R: kf.R
+            };
+
+            let lastMeasurementTime = 0;
+
+            for (let t = 0; t <= maxTime; t += dt) {
+                // Ground truth - complete 3 figure-8s in 30 seconds
+                const truth = generateFigure8(t * 3 * 2 * Math.PI / maxTime);
+                groundTruth.push(truth);
+
+                // Predict step (always)
+                kf.predict();
+
+                // Update step (only at measurement rate)
+                let hadMeasurement = false;
+                if (t - lastMeasurementTime >= measurementRate - dt/2) {
+                    const measurement = addNoise(truth, measurementNoise);
+                    measurements.push({time: t, pos: measurement});
+                    kf.update([[measurement[0]], [measurement[1]]]);
+                    lastMeasurementTime = t;
+                    hadMeasurement = true;
+
+                    // Store last values
+                    if (kf.innovation) {
+                        lastInnovation = [...kf.innovation.map(row => row[0])];
+                    }
+                    if (kf.kalmanGain) {
+                        lastKalmanGain = kf.kalmanGain.map(row => [...row]);
+                    }
+                    if (kf.innovationCovariance) {
+                        lastInnovationCovariance = kf.innovationCovariance.map(row => [...row]);
+                    }
+                }
+
+                estimates.push([kf.x[0][0], kf.x[1][0]]);
+                covariances.push(kf.getPositionCovariance());
+
+                // Store complete filter state
+                filterStates.push({
+                    x: [...kf.x.map(row => row[0])],
+                    P: kf.P.map(row => [...row]),
+                    innovation: kf.innovation ? [...kf.innovation.map(row => row[0])] : lastInnovation,
+                    kalmanGain: kf.kalmanGain ? kf.kalmanGain.map(row => [...row]) : lastKalmanGain,
+                    innovationCovariance: kf.innovationCovariance ? kf.innovationCovariance.map(row => [...row]) : lastInnovationCovariance,
+                    hadMeasurement: hadMeasurement
+                });
+            }
+        }
+
+        // Function to display a matrix in HTML
+        function displayMatrix(matrix, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+
+            matrix.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'matrix-row-display';
+
+                row.forEach(val => {
+                    const cell = document.createElement('div');
+                    cell.className = 'matrix-cell';
+                    const num = typeof val === 'number' ? val : 0;
+                    cell.textContent = Math.abs(num) < 0.001 && num !== 0 ? num.toExponential(1) : num.toFixed(3);
+                    rowDiv.appendChild(cell);
+                });
+
+                container.appendChild(rowDiv);
+            });
+        }
+
+        function updateStateDisplay() {
+            const timeIndex = Math.floor(currentTime / dt);
+            if (timeIndex >= filterStates.length) return;
+
+            const state = filterStates[timeIndex];
+            const truth = groundTruth[timeIndex];
+
+            // Update state vector display
+            document.getElementById('state-x').textContent = state.x[0].toFixed(2);
+            document.getElementById('state-y').textContent = state.x[1].toFixed(2);
+            document.getElementById('state-vx').textContent = state.x[2].toFixed(2);
+            document.getElementById('state-vy').textContent = state.x[3].toFixed(2);
+            document.getElementById('state-ax').textContent = state.x[4].toFixed(2);
+            document.getElementById('state-ay').textContent = state.x[5].toFixed(2);
+
+            // Update covariance display
+            document.getElementById('p00').textContent = state.P[0][0].toFixed(2);
+            document.getElementById('p01').textContent = state.P[0][1].toFixed(2);
+            document.getElementById('p10').textContent = state.P[1][0].toFixed(2);
+            document.getElementById('p11').textContent = state.P[1][1].toFixed(2);
+
+            // Update error metrics
+            const posError = Math.sqrt(
+                Math.pow(state.x[0] - truth[0], 2) +
+                Math.pow(state.x[1] - truth[1], 2)
+            );
+            document.getElementById('pos-error').textContent = posError.toFixed(2);
+            document.getElementById('std-x').textContent = Math.sqrt(state.P[0][0]).toFixed(2);
+            document.getElementById('std-y').textContent = Math.sqrt(state.P[1][1]).toFixed(2);
+
+            // Update measurement indicator and innovation
+            const measurementStatus = document.getElementById('measurementStatus');
+            if (state.hadMeasurement) {
+                measurementStatus.textContent = 'Measurement Update';
+                measurementStatus.className = 'measurement-indicator';
+
+                // Show innovation and Kalman gain as active (bright)
+                if (state.innovation) {
+                    const innovX = document.getElementById('innovation-x');
+                    const innovY = document.getElementById('innovation-y');
+                    innovX.textContent = state.innovation[0].toFixed(2);
+                    innovY.textContent = state.innovation[1].toFixed(2);
+                    innovX.className = 'state-value';
+                    innovY.className = 'state-value';
+                }
+
+                if (state.kalmanGain) {
+                    const kElements = [
+                        ['k00', state.kalmanGain[0][0]],
+                        ['k01', state.kalmanGain[0][1]],
+                        ['k10', state.kalmanGain[1][0]],
+                        ['k11', state.kalmanGain[1][1]],
+                        ['k20', state.kalmanGain[2][0]],
+                        ['k21', state.kalmanGain[2][1]],
+                        ['k30', state.kalmanGain[3][0]],
+                        ['k31', state.kalmanGain[3][1]],
+                        ['k40', state.kalmanGain[4][0]],
+                        ['k41', state.kalmanGain[4][1]],
+                        ['k50', state.kalmanGain[5][0]],
+                        ['k51', state.kalmanGain[5][1]]
+                    ];
+
+                    kElements.forEach(([id, value]) => {
+                        const element = document.getElementById(id);
+                        element.textContent = value.toFixed(3);
+                        element.className = 'matrix-value';
+                    });
+                }
+            } else {
+                measurementStatus.textContent = 'Prediction Only';
+                measurementStatus.className = 'measurement-indicator no-measurement';
+
+                // Show previous innovation and Kalman gain as inactive (grayed out)
+                if (state.innovation) {
+                    const innovX = document.getElementById('innovation-x');
+                    const innovY = document.getElementById('innovation-y');
+                    innovX.textContent = state.innovation[0].toFixed(2);
+                    innovY.textContent = state.innovation[1].toFixed(2);
+                    innovX.className = 'state-value inactive';
+                    innovY.className = 'state-value inactive';
+                } else {
+                    document.getElementById('innovation-x').textContent = '--';
+                    document.getElementById('innovation-y').textContent = '--';
+                }
+
+                if (state.kalmanGain) {
+                    const kElements = [
+                        ['k00', state.kalmanGain[0][0]],
+                        ['k01', state.kalmanGain[0][1]],
+                        ['k10', state.kalmanGain[1][0]],
+                        ['k11', state.kalmanGain[1][1]],
+                        ['k20', state.kalmanGain[2][0]],
+                        ['k21', state.kalmanGain[2][1]],
+                        ['k30', state.kalmanGain[3][0]],
+                        ['k31', state.kalmanGain[3][1]]
+                    ];
+
+                    kElements.forEach(([id, value]) => {
+                        const element = document.getElementById(id);
+                        element.textContent = value.toFixed(3);
+                        element.className = 'matrix-value inactive';
+                    });
+                } else {
+                    ['k00', 'k01', 'k10', 'k11', 'k20', 'k21', 'k30', 'k31', 'k40', 'k41', 'k50', 'k51'].forEach(id => {
+                        document.getElementById(id).textContent = '--';
+                    });
+                }
+            }
+
+            // Update system matrices display (if visible)
+            if (systemMatrices && document.getElementById('matricesSection').classList.contains('visible')) {
+                displayMatrix(systemMatrices.F, 'matrix-F');
+                displayMatrix(systemMatrices.H, 'matrix-H');
+                displayMatrix(systemMatrices.Q, 'matrix-Q');
+                displayMatrix(systemMatrices.R, 'matrix-R');
+                displayMatrix(state.P, 'matrix-P-full');
+
+                // Display innovation covariance if available
+                if (state.innovationCovariance) {
+                    displayMatrix(state.innovationCovariance, 'matrix-S');
+                } else {
+                    document.getElementById('matrix-S').innerHTML = '<div style="color: #666;">Not computed (prediction only)</div>';
+                }
+            }
+        }
+
+        // --- Fade helpers ---
+        // How quickly old points fade. Larger => slower fade.
+        const FADE_WINDOW_SECONDS = 6.0;   // overall fade length
+        const MIN_ALPHA = 0.06;            // don't disappear completely
+        const FADE_SHARPNESS = 2.5;        // >1 => steeper initial dropoff
+
+        function fadeAlphaFromAge(ageSeconds) {
+            if (ageSeconds <= 0) return 1.0;
+            // Exponential with power law shaping.
+            const base = Math.exp(-ageSeconds / FADE_WINDOW_SECONDS);
+            const shaped = Math.pow(base, FADE_SHARPNESS);
+            return Math.max(MIN_ALPHA, shaped);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+
+            const timeIndex = Math.floor(currentTime / dt);
+
+            // Draw past trajectory (faded)
+            ctx.globalAlpha = 0.3;
+
+            // Ground truth trail
+            ctx.strokeStyle = '#0f0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i <= timeIndex && i < groundTruth.length; i++) {
+                const [x, y] = groundTruth[i];
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw Kalman estimates as dots with error ellipses (fade by age)
+            for (let i = 0; i <= timeIndex && i < estimates.length; i += 2) {
+                const t = i * dt;
+                const age = currentTime - t;
+                const a = fadeAlphaFromAge(age);
+
+                if (i === timeIndex) {
+                    // --- Current ellipse: fixed 0.3 / 0.05 values, as before ---
+                    ctx.globalAlpha = 0.3;
+                    ctx.strokeStyle = 'rgba(0,255,255,1)';
+                    ctx.lineWidth = 2;
+                    drawErrorEllipse(ctx, estimates[i][0], estimates[i][1], covariances[i]);
+                    ctx.stroke();
+
+                    ctx.globalAlpha = 0.05;
+                    ctx.fillStyle = 'rgba(0,255,255,1)';
+                    ctx.fill();
+
+                    // Estimate dot (bright)
+                    ctx.globalAlpha = 1.0;
+                    ctx.fillStyle = '#0ff';
+                    ctx.beginPath();
+                    ctx.arc(estimates[i][0], estimates[i][1], 6, 0, 2 * Math.PI);
+                    ctx.fill();
+                } else {
+                    // --- Historical ellipses/dots fade with age ---
+                    ctx.globalAlpha = a * 0.15;
+                    ctx.strokeStyle = 'rgba(0,255,255,1)';
+                    ctx.fillStyle   = 'rgba(0,255,255,1)';
+                    ctx.lineWidth = 1;
+                    drawErrorEllipse(ctx, estimates[i][0], estimates[i][1], covariances[i]);
+                    ctx.stroke();
+
+                    ctx.globalAlpha = a * 0.05;
+                    ctx.fill();
+
+                    // Faded estimate dot
+                    ctx.globalAlpha = a * 0.5;
+                    ctx.fillStyle = '#0ff';
+                    ctx.beginPath();
+                    ctx.arc(estimates[i][0], estimates[i][1], 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+
+            ctx.globalAlpha = 1;
+
+            // Draw measurements up to current time (fade by age)
+            measurements.forEach(m => {
+                if (m.time <= currentTime) {
+                    const age = currentTime - m.time;
+                    const a = fadeAlphaFromAge(age);
+                    ctx.globalAlpha = a;
+                    ctx.fillStyle = '#f0f';
+                    ctx.beginPath();
+                    ctx.arc(m.pos[0], m.pos[1], 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+            ctx.globalAlpha = 1.0;
+
+            // Draw current positions
+            if (timeIndex < groundTruth.length) {
+                // Ground truth
+                ctx.fillStyle = '#0f0';
+                ctx.beginPath();
+                ctx.arc(groundTruth[timeIndex][0], groundTruth[timeIndex][1], 6, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Current error ellipse (brighter)
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+                ctx.lineWidth = 2;
+                drawErrorEllipse(ctx, estimates[timeIndex][0], estimates[timeIndex][1], covariances[timeIndex]);
+                ctx.fill();
+                ctx.stroke();
+
+                // Current Kalman estimate
+                ctx.fillStyle = '#0ff';
+                ctx.beginPath();
+                ctx.arc(estimates[timeIndex][0], estimates[timeIndex][1], 6, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // Update state display
+            updateStateDisplay();
+        }
+
+        // Controls
+        const timeSlider = document.getElementById('timeSlider');
+        const timeValue = document.getElementById('timeValue');
+
+        timeSlider.max = maxTime / dt;
+
+        timeSlider.addEventListener('input', (e) => {
+            currentTime = e.target.value * dt;
+            timeValue.textContent = currentTime.toFixed(2) + 's';
+            draw();
+        });
+
+        document.getElementById('measurementNoise').addEventListener('input', (e) => {
+            document.getElementById('measurementNoiseValue').textContent = e.target.value;
+            generateData();
+            draw();
+        });
+
+        document.getElementById('processNoise').addEventListener('input', (e) => {
+            document.getElementById('processNoiseValue').textContent = e.target.value;
+            generateData();
+            draw();
+        });
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            playing = !playing;
+        });
+
+        document.getElementById('stepBtn').addEventListener('click', () => {
+            playing = false;
+            currentTime += dt;
+            if (currentTime > maxTime) {
+                currentTime = 0;
+            }
+            timeSlider.value = currentTime / dt;
+            timeValue.textContent = currentTime.toFixed(2) + 's';
+            draw();
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            playing = false;
+            currentTime = 0;
+            timeSlider.value = 0;
+            timeValue.textContent = '0.00s';
+            generateData();
+            draw();
+        });
+
+        // Toggle matrices section
+        document.getElementById('toggleMatrices').addEventListener('click', () => {
+            const section = document.getElementById('matricesSection');
+            const toggle = document.getElementById('toggleMatrices');
+            if (section.classList.contains('visible')) {
+                section.classList.remove('visible');
+                toggle.textContent = 'Show System Matrices & Equations ▼';
+            } else {
+                section.classList.add('visible');
+                toggle.textContent = 'Hide System Matrices & Equations ▲';
+                updateStateDisplay(); // Update matrices display
+            }
+        });
+
+        // Animation loop
+        function animate() {
+            if (playing) {
+                currentTime += dt;
+                if (currentTime > maxTime) {
+                    currentTime = 0;
+                }
+                timeSlider.value = currentTime / dt;
+                timeValue.textContent = currentTime.toFixed(2) + 's';
+                draw();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        generateData();
+        draw();
+        animate();
+    </script>
+</body>
+</html>
