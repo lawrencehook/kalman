@@ -1400,9 +1400,20 @@
                     const age = currentTime - t;
                     const a = this.fadeAlphaFromAge(age);
 
+                    // Historical ellipses (faded) — test inclusion
+                    let inside = true;
+                    if (est && cov && groundTruth[i]) {
+                        const dx = groundTruth[i][0] - est[0];
+                        const dy = groundTruth[i][1] - est[1];
+                        const Sinv = MatrixUtils.inverse2x2(cov);
+                        const d2 = dx*(Sinv[0][0]*dx + Sinv[0][1]*dy) +
+                                   dy*(Sinv[1][0]*dx + Sinv[1][1]*dy);
+                        inside = (d2 <= 5.991);
+                    }
+
                     this.ctx.globalAlpha = a * 0.15;
-                    this.ctx.strokeStyle = 'rgba(0,255,255,1)';
-                    this.ctx.fillStyle = 'rgba(0,255,255,1)';
+                    this.ctx.strokeStyle = inside ? 'rgba(0,255,255,1)' : 'rgba(255,80,80,1)';
+                    this.ctx.fillStyle   = inside ? 'rgba(0,255,255,1)' : 'rgba(255,80,80,1)';
                     this.ctx.lineWidth = 1;
                     this.drawErrorEllipse(est[0], est[1], cov);
                     this.ctx.stroke();
@@ -1443,14 +1454,27 @@
                     const est = estimates[timeIndex];
                     const cov = covariances[timeIndex];
                     if (est && cov) {
+                        // Test if ground truth lies inside 95% ellipse
+                        const pos = estimates[timeIndex];
+                        const cov = covariances[timeIndex];
+                        let inside = true;
+                        if (pos && cov) {
+                            const dx = groundTruth[timeIndex][0] - pos[0];
+                            const dy = groundTruth[timeIndex][1] - pos[1];
+                            const Sinv = MatrixUtils.inverse2x2(cov);
+                            const d2 = dx*(Sinv[0][0]*dx + Sinv[0][1]*dy) +
+                                       dy*(Sinv[1][0]*dx + Sinv[1][1]*dy);
+                            inside = (d2 <= 5.991); // 95% chi-square cutoff
+                        }
+    
                         this.ctx.globalAlpha = 0.3;
-                        this.ctx.strokeStyle = 'rgba(0, 255, 255, 1)';
+                        this.ctx.strokeStyle = inside ? 'rgba(0,255,255,1)' : 'rgba(255,80,80,1)';
                         this.ctx.lineWidth = 2;
-                        this.drawErrorEllipse(est[0], est[1], cov);
+                        this.drawErrorEllipse(pos[0], pos[1], cov);
                         this.ctx.stroke();
-
+    
                         this.ctx.globalAlpha = 0.05;
-                        this.ctx.fillStyle = 'rgba(0, 255, 255, 1)';
+                        this.ctx.fillStyle = inside ? 'rgba(0,255,255,1)' : 'rgba(255,80,80,1)';
                         this.ctx.fill();
 
                         this.ctx.globalAlpha = 1.0;
@@ -1837,8 +1861,9 @@
                         this.estimates.push(position);
                         this.covariances.push(covPos);
 
-                        // Update coverage (inside 95% ellipse => r^T S^{-1} r <= 5.991)
-                        if (position && covPos) {
+                        // Update coverage only after filter is initialized
+                        // (inside 95% ellipse => r^T S^{-1} r <= 5.991)
+                        if (this.filter.initialized && position && covPos) {
                             const r0 = truth[0] - position[0];
                             const r1 = truth[1] - position[1];
                             const Sinv = MatrixUtils.inverse2x2(covPos);
