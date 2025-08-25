@@ -51,7 +51,7 @@
             max-height: 90vh;
             overflow-y: auto;
         }
-
+        
         /* Matrix Display Styles */
         .matrix-container {
             display: inline-block;
@@ -59,12 +59,12 @@
             margin: 10px;
             font-family: 'Courier New', monospace;
         }
-
+        
         .matrix-brackets {
             position: relative;
             display: inline-block;
         }
-
+        
         .matrix-brackets::before,
         .matrix-brackets::after {
             content: '';
@@ -76,21 +76,21 @@
             border-left: none;
             border-right: none;
         }
-
+        
         .matrix-brackets::before {
             left: -10px;
             border-left: 2px solid #4af;
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
         }
-
+        
         .matrix-brackets::after {
             right: -10px;
             border-right: 2px solid #4af;
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
         }
-
+        
         .matrix-grid {
             display: grid;
             gap: 6px 10px;
@@ -98,12 +98,12 @@
             align-items: center;
             justify-items: center;
         }
-
+        
         .matrix-2x2 { grid-template-columns: repeat(2, 1fr); }
         .matrix-2x6 { grid-template-columns: repeat(6, 1fr); }
         .matrix-6x2 { grid-template-columns: repeat(2, 1fr); }
         .matrix-6x6 { grid-template-columns: repeat(6, 1fr); }
-
+        
         .matrix-cell {
             font-size: 10px;
             color: #0ff;
@@ -111,11 +111,11 @@
             min-width: 42px;
             white-space: nowrap;
         }
-
+        
         .matrix-cell.inactive {
             color: #666;
         }
-
+        
         .matrix-title {
             color: #4af;
             font-size: 13px;
@@ -123,14 +123,14 @@
             text-align: center;
             font-family: Arial, sans-serif;
         }
-
+        
         .matrices-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 25px;
             margin-top: 15px;
         }
-
+        
         .matrix-display {
             text-align: center;
             background: #1a1a1a;
@@ -138,7 +138,7 @@
             border-radius: 6px;
             border: 1px solid #333;
         }
-
+        
         h2[data-tooltip]:hover::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -419,7 +419,7 @@
         </div>
 
         <div class="state-panel">
-            <h2 style="color: #4af; text-align: center; margin-top: 0; cursor: help;" data-tooltip="The Kalman filter optimally combines noisy measurements with a motion model to estimate the true state. It balances trust between predictions and measurements based on their relative uncertainties.">Kalman Filter State</h2>
+            <h2 style="color: #4af; text-align: center; margin-top: 0; cursor: help;" data-tooltip="The Kalman filter optimally combines noisy measurements with a motion model to estimate the true state. It balances trust between predictions and measurements based on their relative uncertainties.">Filter State</h2>
 
             <div id="measurementStatus" class="measurement-indicator no-measurement">
                 No Measurement
@@ -470,7 +470,7 @@
             <div class="state-section">
                 <h3 data-tooltip="Metrics comparing the filter's estimates to ground truth and showing the filter's confidence levels.">Error Metrics</h3>
                 <div class="state-row">
-                    <span class="state-label" data-tooltip="Euclidean distance between the Kalman estimate and ground truth position">Position Error:</span>
+                    <span class="state-label" data-tooltip="Euclidean distance between the filter estimate and ground truth position">Position Error:</span>
                     <span class="state-value" id="pos-error">0.00</span>
                 </div>
                 <div class="state-row">
@@ -519,7 +519,7 @@
         </div>
     </div>
 
-    <!-- System Matrices Section - Moved Below Main Container -->
+    <!-- System Matrices Section -->
     <div class="system-matrices">
         <div class="toggle-section" id="toggleMatrices">
             Show System Matrices & Equations ▼
@@ -589,7 +589,7 @@
             </div>
 
             <div class="state-section">
-                <h3 data-tooltip="The mathematical operations performed during prediction and update steps">Kalman Equations</h3>
+                <h3 data-tooltip="The mathematical operations performed during prediction and update steps">Filter Equations</h3>
 
                 <div class="equation-section">
                     <div class="eq-label">Prediction Step (every 0.05s):</div>
@@ -610,8 +610,14 @@
     </div>
 
     <script>
-        // Matrix operations
-        class Matrix {
+        // ================================
+        // UTILITY MODULES
+        // ================================
+        
+        /**
+         * Matrix utility functions - completely modular
+         */
+        class MatrixUtils {
             static multiply(A, B) {
                 const m = A.length, n = A[0].length, p = B[0].length;
                 const C = Array(m).fill().map(() => Array(p).fill(0));
@@ -650,15 +656,187 @@
                     Array(n).fill().map((_, j) => i === j ? 1 : 0)
                 );
             }
+
+            static extractSubmatrix(matrix, startRow, endRow, startCol, endCol) {
+                return matrix.slice(startRow, endRow + 1)
+                    .map(row => row.slice(startCol, endCol + 1));
+            }
         }
 
-        // Kalman Filter implementation
-        class KalmanFilter2D {
-            constructor(dt, measurementNoise, processNoise) {
+        /**
+         * Noise generation utilities
+         */
+        class NoiseUtils {
+            static gaussian(sigma = 1.0) {
+                // Box-Muller transform
+                const u = Math.random();
+                const v = Math.random();
+                return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v) * sigma;
+            }
+
+            static addGaussianNoise(position, sigma) {
+                return [
+                    position[0] + this.gaussian(sigma),
+                    position[1] + this.gaussian(sigma)
+                ];
+            }
+        }
+
+        // ================================
+        // DATA GENERATOR INTERFACES
+        // ================================
+        
+        /**
+         * Base class for trajectory generators
+         * Extend this to create new trajectory types
+         */
+        class TrajectoryGenerator {
+            constructor(config = {}) {
+                this.config = {
+                    maxTime: 30,
+                    scale: 150,
+                    ...config
+                };
+            }
+
+            /**
+             * Generate position at time t
+             * @param {number} t - Time in seconds
+             * @returns {[number, number]} - [x, y] position
+             */
+            generatePosition(t) {
+                throw new Error('generatePosition must be implemented by subclass');
+            }
+
+            /**
+             * Get trajectory name for display
+             */
+            getName() {
+                return 'Generic Trajectory';
+            }
+        }
+
+        /**
+         * Figure-8 trajectory generator
+         */
+        class Figure8Generator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                // Complete 3 figure-8s over maxTime
+                const phase = t * 3 * 2 * Math.PI / maxTime;
+                const x = scale * Math.sin(phase);
+                const y = scale * Math.sin(phase) * Math.cos(phase);
+                return [x, y];
+            }
+
+            getName() {
+                return 'Figure-8';
+            }
+        }
+
+        /**
+         * Circle trajectory generator - example of easy swapping
+         */
+        class CircleGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const phase = t * 2 * Math.PI / (maxTime / 3); // 3 circles in maxTime
+                const x = scale * Math.cos(phase);
+                const y = scale * Math.sin(phase);
+                return [x, y];
+            }
+
+            getName() {
+                return 'Circle';
+            }
+        }
+
+        // ================================
+        // FILTER INTERFACES
+        // ================================
+        
+        /**
+         * Base class for all filters
+         * Extend this to implement different filter types
+         */
+        class FilterBase {
+            constructor(config = {}) {
+                this.config = config;
+                this.lastInnovation = null;
+                this.lastKalmanGain = null;
+                this.lastInnovationCovariance = null;
+            }
+
+            /**
+             * Prediction step - must be implemented by subclass
+             */
+            predict() {
+                throw new Error('predict must be implemented by subclass');
+            }
+
+            /**
+             * Update step with measurement - must be implemented by subclass
+             * @param {Array} measurement - measurement vector
+             */
+            update(measurement) {
+                throw new Error('update must be implemented by subclass');
+            }
+
+            /**
+             * Get current state estimate
+             */
+            getState() {
+                return this.state;
+            }
+
+            /**
+             * Get position estimate [x, y]
+             */
+            getPosition() {
+                if (!this.state || this.state.length < 2) return [0, 0];
+                return [this.state[0][0], this.state[1][0]];
+            }
+
+            /**
+             * Get position covariance matrix
+             */
+            getPositionCovariance() {
+                if (!this.covariance) return [[1, 0], [0, 1]];
+                return MatrixUtils.extractSubmatrix(this.covariance, 0, 1, 0, 1);
+            }
+
+            /**
+             * Get system matrices for display
+             */
+            getSystemMatrices() {
+                return {};
+            }
+
+            /**
+             * Get filter name for display
+             */
+            getName() {
+                return 'Generic Filter';
+            }
+        }
+
+        /**
+         * 2D Kalman Filter implementation
+         */
+        class KalmanFilter2D extends FilterBase {
+            constructor(config = {}) {
+                super(config);
+                const { dt, measurementNoise, processNoise } = {
+                    dt: 0.05,
+                    measurementNoise: 15,
+                    processNoise: 1,
+                    ...config
+                };
+
                 this.dt = dt;
 
                 // State vector: [x, y, vx, vy, ax, ay]
-                this.x = [[0], [0], [0], [0], [0], [0]];
+                this.state = [[0], [0], [0], [0], [0], [0]];
 
                 // State transition matrix (constant acceleration model)
                 this.F = [
@@ -677,7 +855,7 @@
                 ];
 
                 // Process covariance
-                this.P = Matrix.identity(6).map(row => row.map(val => val * 100));
+                this.covariance = MatrixUtils.identity(6).map(row => row.map(val => val * 100));
 
                 // Process noise covariance
                 const q = processNoise;
@@ -695,557 +873,679 @@
                     [measurementNoise * measurementNoise, 0],
                     [0, measurementNoise * measurementNoise]
                 ];
-
-                // Store latest values for display
-                this.innovation = null;
-                this.kalmanGain = null;
-                this.innovationCovariance = null;
             }
 
             predict() {
                 // Predict state
-                this.x = Matrix.multiply(this.F, this.x);
+                this.state = MatrixUtils.multiply(this.F, this.state);
 
                 // Predict covariance
-                const FP = Matrix.multiply(this.F, this.P);
-                const FPFt = Matrix.multiply(FP, Matrix.transpose(this.F));
-                this.P = Matrix.add(FPFt, this.Q);
+                const FP = MatrixUtils.multiply(this.F, this.covariance);
+                const FPFt = MatrixUtils.multiply(FP, MatrixUtils.transpose(this.F));
+                this.covariance = MatrixUtils.add(FPFt, this.Q);
 
                 // Clear measurement-related values after prediction
-                this.innovation = null;
-                this.kalmanGain = null;
-                this.innovationCovariance = null;
+                this.lastInnovation = null;
+                this.lastKalmanGain = null;
+                this.lastInnovationCovariance = null;
             }
 
-            update(z) {
+            update(measurement) {
                 // Innovation
-                const y = Matrix.subtract(z, Matrix.multiply(this.H, this.x));
-                this.innovation = y;
+                const innovation = MatrixUtils.subtract(measurement, MatrixUtils.multiply(this.H, this.state));
+                this.lastInnovation = innovation;
 
                 // Innovation covariance
-                const HP = Matrix.multiply(this.H, this.P);
-                const HPHt = Matrix.multiply(HP, Matrix.transpose(this.H));
-                const S = Matrix.add(HPHt, this.R);
-                this.innovationCovariance = S;
+                const HP = MatrixUtils.multiply(this.H, this.covariance);
+                const HPHt = MatrixUtils.multiply(HP, MatrixUtils.transpose(this.H));
+                const S = MatrixUtils.add(HPHt, this.R);
+                this.lastInnovationCovariance = S;
 
                 // Kalman gain
-                const PHt = Matrix.multiply(this.P, Matrix.transpose(this.H));
-                const K = Matrix.multiply(PHt, Matrix.inverse2x2(S));
-                this.kalmanGain = K;
+                const PHt = MatrixUtils.multiply(this.covariance, MatrixUtils.transpose(this.H));
+                const K = MatrixUtils.multiply(PHt, MatrixUtils.inverse2x2(S));
+                this.lastKalmanGain = K;
 
                 // Update state
-                const Ky = Matrix.multiply(K, y);
-                this.x = Matrix.add(this.x, Ky);
+                const Ky = MatrixUtils.multiply(K, innovation);
+                this.state = MatrixUtils.add(this.state, Ky);
 
                 // Update covariance
-                const KH = Matrix.multiply(K, this.H);
-                const I_KH = Matrix.subtract(Matrix.identity(6), KH);
-                this.P = Matrix.multiply(I_KH, this.P);
+                const KH = MatrixUtils.multiply(K, this.H);
+                const I_KH = MatrixUtils.subtract(MatrixUtils.identity(6), KH);
+                this.covariance = MatrixUtils.multiply(I_KH, this.covariance);
             }
 
-            getPositionCovariance() {
-                // Extract 2x2 position covariance
-                return [
-                    [this.P[0][0], this.P[0][1]],
-                    [this.P[1][0], this.P[1][1]]
+            getSystemMatrices() {
+                return {
+                    F: this.F,
+                    H: this.H,
+                    Q: this.Q,
+                    R: this.R
+                };
+            }
+
+            getName() {
+                return 'Kalman Filter 2D';
+            }
+
+            // Update noise parameters
+            updateNoise(measurementNoise, processNoise) {
+                const q = processNoise;
+                const dt = this.dt;
+                
+                this.Q = [
+                    [dt**4/4 * q, 0, dt**3/2 * q, 0, dt**2/2 * q, 0],
+                    [0, dt**4/4 * q, 0, dt**3/2 * q, 0, dt**2/2 * q],
+                    [dt**3/2 * q, 0, dt**2 * q, 0, dt * q, 0],
+                    [0, dt**3/2 * q, 0, dt**2 * q, 0, dt * q],
+                    [dt**2/2 * q, 0, dt * q, 0, q, 0],
+                    [0, dt**2/2 * q, 0, dt * q, 0, q]
+                ];
+
+                this.R = [
+                    [measurementNoise * measurementNoise, 0],
+                    [0, measurementNoise * measurementNoise]
                 ];
             }
         }
 
-        // Generate figure 8 trajectory
-        function generateFigure8(t) {
-            const scale = 150;
-            const x = scale * Math.sin(t);
-            const y = scale * Math.sin(t) * Math.cos(t);
-            return [x, y];
-        }
+        // ================================
+        // VISUALIZATION ENGINE
+        // ================================
+        
+        /**
+         * Handles all canvas visualization
+         */
+        class VisualizationEngine {
+            constructor(canvasId, config = {}) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.config = {
+                    fadeWindowSeconds: 6.0,
+                    minAlpha: 0.06,
+                    fadeSharpness: 2.5,
+                    ...config
+                };
+            }
 
-        // Generate noisy measurement
-        function addNoise(pos, sigma) {
-            const noise = () => (Math.random() - 0.5) * 2 * sigma;
-            return [pos[0] + noise(), pos[1] + noise()];
-        }
+            /**
+             * Calculate fade alpha based on age
+             */
+            fadeAlphaFromAge(ageSeconds) {
+                if (ageSeconds <= 0) return 1.0;
+                const base = Math.exp(-ageSeconds / this.config.fadeWindowSeconds);
+                const shaped = Math.pow(base, this.config.fadeSharpness);
+                return Math.max(this.config.minAlpha, shaped);
+            }
 
-        // Draw error ellipse
-        function drawErrorEllipse(ctx, x, y, cov, confidence = 0.95) {
-            // Chi-squared value for 95% confidence in 2D
-            const chi2 = 5.991; // For 95% confidence
+            /**
+             * Draw error ellipse
+             */
+            drawErrorEllipse(x, y, cov, confidence = 0.95) {
+                const chi2 = 5.991; // 95% confidence for 2D
+                
+                const a = cov[0][0];
+                const b = cov[0][1];
+                const c = cov[1][1];
 
-            // Eigenvalue decomposition (simplified for 2x2)
-            const a = cov[0][0];
-            const b = cov[0][1];
-            const c = cov[1][1];
+                const trace = a + c;
+                const det = a * c - b * b;
+                const disc = Math.sqrt(Math.max(0, trace * trace - 4 * det));
 
-            const trace = a + c;
-            const det = a * c - b * b;
-            const disc = Math.sqrt(Math.max(0, trace * trace - 4 * det));
+                const lambda1 = (trace + disc) / 2;
+                const lambda2 = (trace - disc) / 2;
+                const angle = Math.atan2(lambda1 - a, b);
 
-            const lambda1 = (trace + disc) / 2;
-            const lambda2 = (trace - disc) / 2;
+                const width = 2 * Math.sqrt(Math.max(0, lambda1 * chi2));
+                const height = 2 * Math.sqrt(Math.max(0, lambda2 * chi2));
 
-            const angle = Math.atan2(lambda1 - a, b);
+                this.ctx.save();
+                this.ctx.translate(x, y);
+                this.ctx.rotate(angle);
+                this.ctx.beginPath();
+                this.ctx.ellipse(0, 0, width, height, 0, 0, 2 * Math.PI);
+                this.ctx.restore();
+            }
 
-            const width = 2 * Math.sqrt(Math.max(0, lambda1 * chi2));
-            const height = 2 * Math.sqrt(Math.max(0, lambda2 * chi2));
+            /**
+             * Main draw function
+             */
+            draw(data) {
+                const { currentTime, dt, groundTruth, measurements, estimates, covariances } = data;
+                
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.save();
+                this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
 
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(angle);
-            ctx.beginPath();
-            ctx.ellipse(0, 0, width, height, 0, 0, 2 * Math.PI);
-            ctx.restore();
-        }
+                const timeIndex = Math.floor(currentTime / dt);
 
-        // Function to display a matrix in HTML with proper formatting
-        function displayMatrix(matrix, elementId) {
-            const container = document.getElementById(elementId);
-            container.innerHTML = '';
+                // Draw ground truth trail
+                this.ctx.globalAlpha = 0.3;
+                this.ctx.strokeStyle = '#0f0';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                for (let i = 0; i <= timeIndex && i < groundTruth.length; i++) {
+                    const [x, y] = groundTruth[i];
+                    if (i === 0) this.ctx.moveTo(x, y);
+                    else this.ctx.lineTo(x, y);
+                }
+                this.ctx.stroke();
 
-            matrix.forEach(row => {
-                row.forEach(val => {
-                    const cell = document.createElement('div');
-                    cell.className = 'matrix-cell';
-                    const num = typeof val === 'number' ? val : 0;
-                    if (Math.abs(num) < 0.001 && num !== 0) {
-                        cell.textContent = num.toExponential(1);
-                    } else if (Math.abs(num) < 0.01) {
-                        cell.textContent = num.toFixed(4);
+                // Draw estimates with error ellipses (faded by age)
+                for (let i = 0; i <= timeIndex && i < estimates.length; i += 2) {
+                    const t = i * dt;
+                    const age = currentTime - t;
+                    const a = this.fadeAlphaFromAge(age);
+
+                    if (i === timeIndex) {
+                        // Current ellipse
+                        this.ctx.globalAlpha = 0.3;
+                        this.ctx.strokeStyle = 'rgba(0,255,255,1)';
+                        this.ctx.lineWidth = 2;
+                        this.drawErrorEllipse(estimates[i][0], estimates[i][1], covariances[i]);
+                        this.ctx.stroke();
+
+                        this.ctx.globalAlpha = 0.05;
+                        this.ctx.fillStyle = 'rgba(0,255,255,1)';
+                        this.ctx.fill();
+
+                        // Current estimate dot
+                        this.ctx.globalAlpha = 1.0;
+                        this.ctx.fillStyle = '#0ff';
+                        this.ctx.beginPath();
+                        this.ctx.arc(estimates[i][0], estimates[i][1], 6, 0, 2 * Math.PI);
+                        this.ctx.fill();
                     } else {
-                        cell.textContent = num.toFixed(3);
+                        // Historical ellipses (faded)
+                        this.ctx.globalAlpha = a * 0.15;
+                        this.ctx.strokeStyle = 'rgba(0,255,255,1)';
+                        this.ctx.fillStyle = 'rgba(0,255,255,1)';
+                        this.ctx.lineWidth = 1;
+                        this.drawErrorEllipse(estimates[i][0], estimates[i][1], covariances[i]);
+                        this.ctx.stroke();
+
+                        this.ctx.globalAlpha = a * 0.05;
+                        this.ctx.fill();
+
+                        // Historical estimate dot
+                        this.ctx.globalAlpha = a * 0.5;
+                        this.ctx.fillStyle = '#0ff';
+                        this.ctx.beginPath();
+                        this.ctx.arc(estimates[i][0], estimates[i][1], 2, 0, 2 * Math.PI);
+                        this.ctx.fill();
                     }
-                    container.appendChild(cell);
+                }
+
+                // Draw measurements (faded by age)
+                measurements.forEach(m => {
+                    if (m.time <= currentTime) {
+                        const age = currentTime - m.time;
+                        const a = this.fadeAlphaFromAge(age);
+                        this.ctx.globalAlpha = a;
+                        this.ctx.fillStyle = '#f0f';
+                        this.ctx.beginPath();
+                        this.ctx.arc(m.pos[0], m.pos[1], 3, 0, 2 * Math.PI);
+                        this.ctx.fill();
+                    }
                 });
-            });
+
+                // Draw current ground truth
+                this.ctx.globalAlpha = 1.0;
+                if (timeIndex < groundTruth.length) {
+                    this.ctx.fillStyle = '#0f0';
+                    this.ctx.beginPath();
+                    this.ctx.arc(groundTruth[timeIndex][0], groundTruth[timeIndex][1], 6, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                }
+
+                this.ctx.restore();
+            }
         }
 
-        // Main visualization
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        // ================================
+        // STATE DISPLAY ENGINE
+        // ================================
+        
+        /**
+         * Manages the state panel display
+         */
+        class StateDisplayEngine {
+            constructor() {
+                this.elements = this.cacheElements();
+            }
 
-        let playing = false;
-        let currentTime = 0;
-        const maxTime = 30; // seconds
-        const dt = 0.05; // 20 Hz for filter
-        const measurementRate = 0.1; // 10 Hz for measurements
+            cacheElements() {
+                return {
+                    measurementStatus: document.getElementById('measurementStatus'),
+                    stateX: document.getElementById('state-x'),
+                    stateY: document.getElementById('state-y'),
+                    stateVx: document.getElementById('state-vx'),
+                    stateVy: document.getElementById('state-vy'),
+                    stateAx: document.getElementById('state-ax'),
+                    stateAy: document.getElementById('state-ay'),
+                    p00: document.getElementById('p00'),
+                    p01: document.getElementById('p01'),
+                    p10: document.getElementById('p10'),
+                    p11: document.getElementById('p11'),
+                    posError: document.getElementById('pos-error'),
+                    stdX: document.getElementById('std-x'),
+                    stdY: document.getElementById('std-y'),
+                    innovationX: document.getElementById('innovation-x'),
+                    innovationY: document.getElementById('innovation-y'),
+                    kalmanGainElements: [
+                        'k00', 'k01', 'k10', 'k11', 'k20', 'k21',
+                        'k30', 'k31', 'k40', 'k41', 'k50', 'k51'
+                    ].map(id => ({ id, element: document.getElementById(id) }))
+                };
+            }
 
-        let groundTruth = [];
-        let measurements = [];
-        let estimates = [];
-        let covariances = [];
-        let filterStates = [];
-        let lastInnovation = null;
-        let lastKalmanGain = null;
-        let lastInnovationCovariance = null;
-        let systemMatrices = null;
+            displayMatrix(matrix, elementId) {
+                const container = document.getElementById(elementId);
+                if (!container) return;
+                
+                container.innerHTML = '';
+                matrix.forEach(row => {
+                    row.forEach(val => {
+                        const cell = document.createElement('div');
+                        cell.className = 'matrix-cell';
+                        const num = typeof val === 'number' ? val : 0;
+                        if (Math.abs(num) < 0.001 && num !== 0) {
+                            cell.textContent = num.toExponential(1);
+                        } else if (Math.abs(num) < 0.01) {
+                            cell.textContent = num.toFixed(4);
+                        } else {
+                            cell.textContent = num.toFixed(3);
+                        }
+                        container.appendChild(cell);
+                    });
+                });
+            }
 
-        function generateData() {
-            const measurementNoise = parseFloat(document.getElementById('measurementNoise').value);
-            const processNoise = parseFloat(document.getElementById('processNoise').value);
+            updateDisplay(filterState, groundTruth, systemMatrices, showMatrices) {
+                const { state, covariance, innovation, kalmanGain, innovationCovariance, hadMeasurement } = filterState;
 
-            groundTruth = [];
-            measurements = [];
-            estimates = [];
-            covariances = [];
-            filterStates = [];
-            lastInnovation = null;
-            lastKalmanGain = null;
-            lastInnovationCovariance = null;
+                // Update state vector
+                this.elements.stateX.textContent = state[0].toFixed(2);
+                this.elements.stateY.textContent = state[1].toFixed(2);
+                this.elements.stateVx.textContent = state[2].toFixed(2);
+                this.elements.stateVy.textContent = state[3].toFixed(2);
+                this.elements.stateAx.textContent = state[4].toFixed(2);
+                this.elements.stateAy.textContent = state[5].toFixed(2);
 
-            const kf = new KalmanFilter2D(dt, measurementNoise, processNoise);
+                // Update position covariance
+                this.elements.p00.textContent = covariance[0][0].toFixed(2);
+                this.elements.p01.textContent = covariance[0][1].toFixed(2);
+                this.elements.p10.textContent = covariance[1][0].toFixed(2);
+                this.elements.p11.textContent = covariance[1][1].toFixed(2);
 
-            // Store system matrices
-            systemMatrices = {
-                F: kf.F,
-                H: kf.H,
-                Q: kf.Q,
-                R: kf.R
+                // Update error metrics
+                const posError = Math.sqrt(
+                    Math.pow(state[0] - groundTruth[0], 2) +
+                    Math.pow(state[1] - groundTruth[1], 2)
+                );
+                this.elements.posError.textContent = posError.toFixed(2);
+                this.elements.stdX.textContent = Math.sqrt(covariance[0][0]).toFixed(2);
+                this.elements.stdY.textContent = Math.sqrt(covariance[1][1]).toFixed(2);
+
+                // Update measurement status and innovation/gain
+                if (hadMeasurement) {
+                    this.elements.measurementStatus.textContent = 'Measurement Update';
+                    this.elements.measurementStatus.className = 'measurement-indicator';
+                    this.updateInnovationAndGain(innovation, kalmanGain, false);
+                } else {
+                    this.elements.measurementStatus.textContent = 'Prediction Only';
+                    this.elements.measurementStatus.className = 'measurement-indicator no-measurement';
+                    this.updateInnovationAndGain(innovation, kalmanGain, true);
+                }
+
+                // Update system matrices if visible
+                if (showMatrices && systemMatrices) {
+                    this.displayMatrix(systemMatrices.F, 'matrix-F');
+                    this.displayMatrix(systemMatrices.H, 'matrix-H');
+                    this.displayMatrix(systemMatrices.Q, 'matrix-Q');
+                    this.displayMatrix(systemMatrices.R, 'matrix-R');
+                    this.displayMatrix(covariance, 'matrix-P-full');
+
+                    if (innovationCovariance) {
+                        this.displayMatrix(innovationCovariance, 'matrix-S');
+                    } else {
+                        document.getElementById('matrix-S').innerHTML = '<div class="matrix-cell inactive">Not computed (prediction only)</div>';
+                    }
+                }
+            }
+
+            updateInnovationAndGain(innovation, kalmanGain, inactive) {
+                const className = inactive ? 'matrix-cell inactive' : 'matrix-cell';
+
+                // Update innovation
+                if (innovation) {
+                    this.elements.innovationX.textContent = innovation[0].toFixed(2);
+                    this.elements.innovationY.textContent = innovation[1].toFixed(2);
+                } else {
+                    this.elements.innovationX.textContent = '--';
+                    this.elements.innovationY.textContent = '--';
+                }
+                this.elements.innovationX.className = className;
+                this.elements.innovationY.className = className;
+
+                // Update Kalman gain
+                if (kalmanGain) {
+                    this.elements.kalmanGainElements.forEach(({ element }, index) => {
+                        const row = Math.floor(index / 2);
+                        const col = index % 2;
+                        element.textContent = kalmanGain[row][col].toFixed(3);
+                        element.className = className;
+                    });
+                } else {
+                    this.elements.kalmanGainElements.forEach(({ element }) => {
+                        element.textContent = '--';
+                        element.className = className;
+                    });
+                }
+            }
+        }
+
+        // ================================
+        // UI CONTROLLER
+        // ================================
+        
+        /**
+         * Manages all UI interactions
+         */
+        class UIController {
+            constructor(simulationController) {
+                this.sim = simulationController;
+                this.initializeControls();
+            }
+
+            initializeControls() {
+                // Time slider
+                const timeSlider = document.getElementById('timeSlider');
+                const timeValue = document.getElementById('timeValue');
+                timeSlider.max = this.sim.config.maxTime / this.sim.config.dt;
+                
+                timeSlider.addEventListener('input', (e) => {
+                    this.sim.setTime(e.target.value * this.sim.config.dt);
+                    timeValue.textContent = this.sim.currentTime.toFixed(2) + 's';
+                });
+
+                // Noise controls
+                document.getElementById('measurementNoise').addEventListener('input', (e) => {
+                    document.getElementById('measurementNoiseValue').textContent = e.target.value;
+                    this.sim.updateNoiseParams();
+                });
+
+                document.getElementById('processNoise').addEventListener('input', (e) => {
+                    document.getElementById('processNoiseValue').textContent = e.target.value;
+                    this.sim.updateNoiseParams();
+                });
+
+                // Control buttons
+                document.getElementById('playBtn').addEventListener('click', () => {
+                    this.sim.togglePlay();
+                });
+
+                document.getElementById('stepBtn').addEventListener('click', () => {
+                    this.sim.step();
+                });
+
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    this.sim.reset();
+                });
+
+                // Matrix visibility toggle
+                document.getElementById('toggleMatrices').addEventListener('click', () => {
+                    const section = document.getElementById('matricesSection');
+                    const toggle = document.getElementById('toggleMatrices');
+                    const isVisible = section.classList.toggle('visible');
+                    toggle.textContent = isVisible ? 
+                        'Hide System Matrices & Equations ▲' : 
+                        'Show System Matrices & Equations ▼';
+                    this.sim.setMatrixVisibility(isVisible);
+                });
+            }
+
+            updateTimeDisplay() {
+                document.getElementById('timeSlider').value = this.sim.currentTime / this.sim.config.dt;
+                document.getElementById('timeValue').textContent = this.sim.currentTime.toFixed(2) + 's';
+            }
+        }
+
+        // ================================
+        // MAIN SIMULATION CONTROLLER
+        // ================================
+        
+        /**
+         * Orchestrates all components - this is where you swap implementations
+         */
+        class SimulationController {
+            constructor(config = {}) {
+                this.config = {
+                    maxTime: 30,
+                    dt: 0.05,
+                    measurementRate: 0.1,
+                    ...config
+                };
+
+                // EASILY SWAPPABLE COMPONENTS - Change these to swap implementations
+                this.trajectoryGenerator = new Figure8Generator({ 
+                    maxTime: this.config.maxTime, 
+                    scale: 150 
+                });
+                
+                this.filter = new KalmanFilter2D({
+                    dt: this.config.dt,
+                    measurementNoise: 15,
+                    processNoise: 1
+                });
+
+                // Initialize other components
+                this.visualization = new VisualizationEngine('canvas');
+                this.stateDisplay = new StateDisplayEngine();
+                
+                // Simulation state
+                this.currentTime = 0;
+                this.playing = false;
+                this.showMatrices = false;
+                
+                // Data storage
+                this.groundTruth = [];
+                this.measurements = [];
+                this.estimates = [];
+                this.covariances = [];
+                this.filterStates = [];
+
+                // Generate initial data
+                this.generateData();
+            }
+
+            /**
+             * TO SWAP FILTER: Change this method
+             */
+            createFilter() {
+                return new KalmanFilter2D({
+                    dt: this.config.dt,
+                    measurementNoise: this.getMeasurementNoise(),
+                    processNoise: this.getProcessNoise()
+                });
+            }
+
+            /**
+             * TO SWAP TRAJECTORY: Change this method
+             */
+            createTrajectoryGenerator() {
+                return new Figure8Generator({ 
+                    maxTime: this.config.maxTime, 
+                    scale: 150 
+                });
+                // TO SWAP: return new CircleGenerator({ maxTime: this.config.maxTime, scale: 150 });
+            }
+
+            getMeasurementNoise() {
+                return parseFloat(document.getElementById('measurementNoise').value);
+            }
+
+            getProcessNoise() {
+                return parseFloat(document.getElementById('processNoise').value);
+            }
+
+            generateData() {
+                // Clear existing data
+                this.groundTruth = [];
+                this.measurements = [];
+                this.estimates = [];
+                this.covariances = [];
+                this.filterStates = [];
+
+                // Create fresh filter instance
+                this.filter = this.createFilter();
+                const measurementNoise = this.getMeasurementNoise();
+                let lastMeasurementTime = 0;
+
+                // Generate full simulation data
+                for (let t = 0; t <= this.config.maxTime; t += this.config.dt) {
+                    // Generate ground truth
+                    const truth = this.trajectoryGenerator.generatePosition(t);
+                    this.groundTruth.push(truth);
+
+                    // Predict step (always)
+                    this.filter.predict();
+
+                    // Update step (only at measurement rate)
+                    let hadMeasurement = false;
+                    if (t - lastMeasurementTime >= this.config.measurementRate - this.config.dt/2) {
+                        const measurement = NoiseUtils.addGaussianNoise(truth, measurementNoise);
+                        this.measurements.push({ time: t, pos: measurement });
+                        this.filter.update([[measurement[0]], [measurement[1]]]);
+                        lastMeasurementTime = t;
+                        hadMeasurement = true;
+                    }
+
+                    // Store results
+                    const position = this.filter.getPosition();
+                    this.estimates.push(position);
+                    this.covariances.push(this.filter.getPositionCovariance());
+                    
+                    this.filterStates.push({
+                        state: [...this.filter.getState().map(row => row[0])],
+                        covariance: this.filter.covariance.map(row => [...row]),
+                        innovation: this.filter.lastInnovation ? 
+                            [...this.filter.lastInnovation.map(row => row[0])] : null,
+                        kalmanGain: this.filter.lastKalmanGain ? 
+                            this.filter.lastKalmanGain.map(row => [...row]) : null,
+                        innovationCovariance: this.filter.lastInnovationCovariance ? 
+                            this.filter.lastInnovationCovariance.map(row => [...row]) : null,
+                        hadMeasurement: hadMeasurement
+                    });
+                }
+            }
+
+            updateNoiseParams() {
+                if (this.filter.updateNoise) {
+                    this.filter.updateNoise(this.getMeasurementNoise(), this.getProcessNoise());
+                }
+                this.generateData();
+                this.draw();
+            }
+
+            setTime(newTime) {
+                this.currentTime = Math.max(0, Math.min(newTime, this.config.maxTime));
+                this.draw();
+            }
+
+            togglePlay() {
+                this.playing = !this.playing;
+            }
+
+            step() {
+                this.playing = false;
+                this.currentTime += this.config.dt;
+                if (this.currentTime > this.config.maxTime) {
+                    this.currentTime = 0;
+                }
+                this.ui.updateTimeDisplay();
+                this.draw();
+            }
+
+            reset() {
+                this.playing = false;
+                this.currentTime = 0;
+                this.generateData();
+                this.ui.updateTimeDisplay();
+                this.draw();
+            }
+
+            setMatrixVisibility(visible) {
+                this.showMatrices = visible;
+                this.draw();
+            }
+
+            draw() {
+                // Update visualization
+                this.visualization.draw({
+                    currentTime: this.currentTime,
+                    dt: this.config.dt,
+                    groundTruth: this.groundTruth,
+                    measurements: this.measurements,
+                    estimates: this.estimates,
+                    covariances: this.covariances
+                });
+
+                // Update state display
+                const timeIndex = Math.floor(this.currentTime / this.config.dt);
+                if (timeIndex < this.filterStates.length) {
+                    this.stateDisplay.updateDisplay(
+                        this.filterStates[timeIndex],
+                        this.groundTruth[timeIndex],
+                        this.filter.getSystemMatrices(),
+                        this.showMatrices
+                    );
+                }
+            }
+
+            animate() {
+                if (this.playing) {
+                    this.currentTime += this.config.dt;
+                    if (this.currentTime > this.config.maxTime) {
+                        this.currentTime = 0;
+                    }
+                    if (this.ui) {
+                        this.ui.updateTimeDisplay();
+                    }
+                    this.draw();
+                }
+                requestAnimationFrame(() => this.animate());
+            }
+
+            start() {
+                this.ui = new UIController(this);
+                this.draw();
+                this.animate();
+            }
+        }
+
+        // ================================
+        // APPLICATION STARTUP
+        // ================================
+        
+        /**
+         * Main application entry point
+         * TO SWAP IMPLEMENTATIONS: Modify the config or component creation here
+         */
+        function startApplication() {
+            const config = {
+                maxTime: 30,
+                dt: 0.05,
+                measurementRate: 0.1
             };
 
-            let lastMeasurementTime = 0;
-
-            for (let t = 0; t <= maxTime; t += dt) {
-                // Ground truth - complete 3 figure-8s in 30 seconds
-                const truth = generateFigure8(t * 3 * 2 * Math.PI / maxTime);
-                groundTruth.push(truth);
-
-                // Predict step (always)
-                kf.predict();
-
-                // Update step (only at measurement rate)
-                let hadMeasurement = false;
-                if (t - lastMeasurementTime >= measurementRate - dt/2) {
-                    const measurement = addNoise(truth, measurementNoise);
-                    measurements.push({time: t, pos: measurement});
-                    kf.update([[measurement[0]], [measurement[1]]]);
-                    lastMeasurementTime = t;
-                    hadMeasurement = true;
-
-                    // Store last values
-                    if (kf.innovation) {
-                        lastInnovation = [...kf.innovation.map(row => row[0])];
-                    }
-                    if (kf.kalmanGain) {
-                        lastKalmanGain = kf.kalmanGain.map(row => [...row]);
-                    }
-                    if (kf.innovationCovariance) {
-                        lastInnovationCovariance = kf.innovationCovariance.map(row => [...row]);
-                    }
-                }
-
-                estimates.push([kf.x[0][0], kf.x[1][0]]);
-                covariances.push(kf.getPositionCovariance());
-
-                // Store complete filter state
-                filterStates.push({
-                    x: [...kf.x.map(row => row[0])],
-                    P: kf.P.map(row => [...row]),
-                    innovation: kf.innovation ? [...kf.innovation.map(row => row[0])] : lastInnovation,
-                    kalmanGain: kf.kalmanGain ? kf.kalmanGain.map(row => [...row]) : lastKalmanGain,
-                    innovationCovariance: kf.innovationCovariance ? kf.innovationCovariance.map(row => [...row]) : lastInnovationCovariance,
-                    hadMeasurement: hadMeasurement
-                });
-            }
+            const simulation = new SimulationController(config);
+            simulation.start();
         }
 
-        function updateStateDisplay() {
-            const timeIndex = Math.floor(currentTime / dt);
-            if (timeIndex >= filterStates.length) return;
-
-            const state = filterStates[timeIndex];
-            const truth = groundTruth[timeIndex];
-
-            // Update state vector display
-            document.getElementById('state-x').textContent = state.x[0].toFixed(2);
-            document.getElementById('state-y').textContent = state.x[1].toFixed(2);
-            document.getElementById('state-vx').textContent = state.x[2].toFixed(2);
-            document.getElementById('state-vy').textContent = state.x[3].toFixed(2);
-            document.getElementById('state-ax').textContent = state.x[4].toFixed(2);
-            document.getElementById('state-ay').textContent = state.x[5].toFixed(2);
-
-            // Update covariance display
-            document.getElementById('p00').textContent = state.P[0][0].toFixed(2);
-            document.getElementById('p01').textContent = state.P[0][1].toFixed(2);
-            document.getElementById('p10').textContent = state.P[1][0].toFixed(2);
-            document.getElementById('p11').textContent = state.P[1][1].toFixed(2);
-
-            // Update error metrics
-            const posError = Math.sqrt(
-                Math.pow(state.x[0] - truth[0], 2) +
-                Math.pow(state.x[1] - truth[1], 2)
-            );
-            document.getElementById('pos-error').textContent = posError.toFixed(2);
-            document.getElementById('std-x').textContent = Math.sqrt(state.P[0][0]).toFixed(2);
-            document.getElementById('std-y').textContent = Math.sqrt(state.P[1][1]).toFixed(2);
-
-            // Update measurement indicator and innovation/Kalman gain
-            const measurementStatus = document.getElementById('measurementStatus');
-            if (state.hadMeasurement) {
-                measurementStatus.textContent = 'Measurement Update';
-                measurementStatus.className = 'measurement-indicator';
-
-                // Show innovation and Kalman gain as active (bright)
-                if (state.innovation) {
-                    const innovX = document.getElementById('innovation-x');
-                    const innovY = document.getElementById('innovation-y');
-                    innovX.textContent = state.innovation[0].toFixed(2);
-                    innovY.textContent = state.innovation[1].toFixed(2);
-                    innovX.className = 'matrix-cell';
-                    innovY.className = 'matrix-cell';
-                }
-
-                if (state.kalmanGain) {
-                    const kElements = [
-                        ['k00', state.kalmanGain[0][0]],
-                        ['k01', state.kalmanGain[0][1]],
-                        ['k10', state.kalmanGain[1][0]],
-                        ['k11', state.kalmanGain[1][1]],
-                        ['k20', state.kalmanGain[2][0]],
-                        ['k21', state.kalmanGain[2][1]],
-                        ['k30', state.kalmanGain[3][0]],
-                        ['k31', state.kalmanGain[3][1]],
-                        ['k40', state.kalmanGain[4][0]],
-                        ['k41', state.kalmanGain[4][1]],
-                        ['k50', state.kalmanGain[5][0]],
-                        ['k51', state.kalmanGain[5][1]]
-                    ];
-
-                    kElements.forEach(([id, value]) => {
-                        const element = document.getElementById(id);
-                        element.textContent = value.toFixed(3);
-                        element.className = 'matrix-cell';
-                    });
-                }
-            } else {
-                measurementStatus.textContent = 'Prediction Only';
-                measurementStatus.className = 'measurement-indicator no-measurement';
-
-                // Show previous innovation and Kalman gain as inactive (grayed out)
-                if (state.innovation) {
-                    const innovX = document.getElementById('innovation-x');
-                    const innovY = document.getElementById('innovation-y');
-                    innovX.textContent = state.innovation[0].toFixed(2);
-                    innovY.textContent = state.innovation[1].toFixed(2);
-                    innovX.className = 'matrix-cell inactive';
-                    innovY.className = 'matrix-cell inactive';
-                } else {
-                    document.getElementById('innovation-x').textContent = '--';
-                    document.getElementById('innovation-y').textContent = '--';
-                    document.getElementById('innovation-x').className = 'matrix-cell inactive';
-                    document.getElementById('innovation-y').className = 'matrix-cell inactive';
-                }
-
-                if (state.kalmanGain) {
-                    const kElements = [
-                        ['k00', state.kalmanGain[0][0]],
-                        ['k01', state.kalmanGain[0][1]],
-                        ['k10', state.kalmanGain[1][0]],
-                        ['k11', state.kalmanGain[1][1]],
-                        ['k20', state.kalmanGain[2][0]],
-                        ['k21', state.kalmanGain[2][1]],
-                        ['k30', state.kalmanGain[3][0]],
-                        ['k31', state.kalmanGain[3][1]],
-                        ['k40', state.kalmanGain[4][0]],
-                        ['k41', state.kalmanGain[4][1]],
-                        ['k50', state.kalmanGain[5][0]],
-                        ['k51', state.kalmanGain[5][1]]
-                    ];
-
-                    kElements.forEach(([id, value]) => {
-                        const element = document.getElementById(id);
-                        element.textContent = value.toFixed(3);
-                        element.className = 'matrix-cell inactive';
-                    });
-                } else {
-                    ['k00', 'k01', 'k10', 'k11', 'k20', 'k21', 'k30', 'k31', 'k40', 'k41', 'k50', 'k51'].forEach(id => {
-                        const element = document.getElementById(id);
-                        element.textContent = '--';
-                        element.className = 'matrix-cell inactive';
-                    });
-                }
-            }
-
-            // Update system matrices display (if visible)
-            if (systemMatrices && document.getElementById('matricesSection').classList.contains('visible')) {
-                displayMatrix(systemMatrices.F, 'matrix-F');
-                displayMatrix(systemMatrices.H, 'matrix-H');
-                displayMatrix(systemMatrices.Q, 'matrix-Q');
-                displayMatrix(systemMatrices.R, 'matrix-R');
-                displayMatrix(state.P, 'matrix-P-full');
-
-                // Display innovation covariance if available
-                if (state.innovationCovariance) {
-                    displayMatrix(state.innovationCovariance, 'matrix-S');
-                } else {
-                    document.getElementById('matrix-S').innerHTML = '<div class="matrix-cell inactive">Not computed (prediction only)</div>';
-                }
-            }
-        }
-
-        // --- Fade helpers ---
-        // How quickly old points fade. Larger => slower fade.
-        const FADE_WINDOW_SECONDS = 6.0;   // overall fade length
-        const MIN_ALPHA = 0.06;            // don't disappear completely
-        const FADE_SHARPNESS = 2.5;        // >1 => steeper initial dropoff
-
-        function fadeAlphaFromAge(ageSeconds) {
-            if (ageSeconds <= 0) return 1.0;
-            // Exponential with power law shaping.
-            const base = Math.exp(-ageSeconds / FADE_WINDOW_SECONDS);
-            const shaped = Math.pow(base, FADE_SHARPNESS);
-            return Math.max(MIN_ALPHA, shaped);
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-
-            const timeIndex = Math.floor(currentTime / dt);
-
-            // Draw past trajectory (faded)
-            ctx.globalAlpha = 0.3;
-
-            // Ground truth trail
-            ctx.strokeStyle = '#0f0';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            for (let i = 0; i <= timeIndex && i < groundTruth.length; i++) {
-                const [x, y] = groundTruth[i];
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-
-            // Draw Kalman estimates as dots with error ellipses (fade by age)
-            for (let i = 0; i <= timeIndex && i < estimates.length; i += 2) {
-                const t = i * dt;
-                const age = currentTime - t;
-                const a = fadeAlphaFromAge(age);
-
-                if (i === timeIndex) {
-                    // --- Current ellipse: fixed 0.3 / 0.05 values, as before ---
-                    ctx.globalAlpha = 0.3;
-                    ctx.strokeStyle = 'rgba(0,255,255,1)';
-                    ctx.lineWidth = 2;
-                    drawErrorEllipse(ctx, estimates[i][0], estimates[i][1], covariances[i]);
-                    ctx.stroke();
-
-                    ctx.globalAlpha = 0.05;
-                    ctx.fillStyle = 'rgba(0,255,255,1)';
-                    ctx.fill();
-
-                    // Estimate dot (bright)
-                    ctx.globalAlpha = 1.0;
-                    ctx.fillStyle = '#0ff';
-                    ctx.beginPath();
-                    ctx.arc(estimates[i][0], estimates[i][1], 6, 0, 2 * Math.PI);
-                    ctx.fill();
-                } else {
-                    // --- Historical ellipses/dots fade with age ---
-                    ctx.globalAlpha = a * 0.15;
-                    ctx.strokeStyle = 'rgba(0,255,255,1)';
-                    ctx.fillStyle   = 'rgba(0,255,255,1)';
-                    ctx.lineWidth = 1;
-                    drawErrorEllipse(ctx, estimates[i][0], estimates[i][1], covariances[i]);
-                    ctx.stroke();
-
-                    ctx.globalAlpha = a * 0.05;
-                    ctx.fill();
-
-                    // Faded estimate dot
-                    ctx.globalAlpha = a * 0.5;
-                    ctx.fillStyle = '#0ff';
-                    ctx.beginPath();
-                    ctx.arc(estimates[i][0], estimates[i][1], 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-            }
-
-            ctx.globalAlpha = 1;
-
-            // Draw measurements up to current time (fade by age)
-            measurements.forEach(m => {
-                if (m.time <= currentTime) {
-                    const age = currentTime - m.time;
-                    const a = fadeAlphaFromAge(age);
-                    ctx.globalAlpha = a;
-                    ctx.fillStyle = '#f0f';
-                    ctx.beginPath();
-                    ctx.arc(m.pos[0], m.pos[1], 3, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-            });
-            ctx.globalAlpha = 1.0;
-
-            // Draw current positions
-            if (timeIndex < groundTruth.length) {
-                // Ground truth
-                ctx.fillStyle = '#0f0';
-                ctx.beginPath();
-                ctx.arc(groundTruth[timeIndex][0], groundTruth[timeIndex][1], 6, 0, 2 * Math.PI);
-                ctx.fill();
-
-                // Current error ellipse (brighter)
-                ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
-                ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
-                ctx.lineWidth = 2;
-                drawErrorEllipse(ctx, estimates[timeIndex][0], estimates[timeIndex][1], covariances[timeIndex]);
-                ctx.fill();
-                ctx.stroke();
-
-                // Current Kalman estimate
-                ctx.fillStyle = '#0ff';
-                ctx.beginPath();
-                ctx.arc(estimates[timeIndex][0], estimates[timeIndex][1], 6, 0, 2 * Math.PI);
-                ctx.fill();
-            }
-
-            ctx.restore();
-
-            // Update state display
-            updateStateDisplay();
-        }
-
-        // Controls
-        const timeSlider = document.getElementById('timeSlider');
-        const timeValue = document.getElementById('timeValue');
-
-        timeSlider.max = maxTime / dt;
-
-        timeSlider.addEventListener('input', (e) => {
-            currentTime = e.target.value * dt;
-            timeValue.textContent = currentTime.toFixed(2) + 's';
-            draw();
-        });
-
-        document.getElementById('measurementNoise').addEventListener('input', (e) => {
-            document.getElementById('measurementNoiseValue').textContent = e.target.value;
-            generateData();
-            draw();
-        });
-
-        document.getElementById('processNoise').addEventListener('input', (e) => {
-            document.getElementById('processNoiseValue').textContent = e.target.value;
-            generateData();
-            draw();
-        });
-
-        document.getElementById('playBtn').addEventListener('click', () => {
-            playing = !playing;
-        });
-
-        document.getElementById('stepBtn').addEventListener('click', () => {
-            playing = false;
-            currentTime += dt;
-            if (currentTime > maxTime) {
-                currentTime = 0;
-            }
-            timeSlider.value = currentTime / dt;
-            timeValue.textContent = currentTime.toFixed(2) + 's';
-            draw();
-        });
-
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            playing = false;
-            currentTime = 0;
-            timeSlider.value = 0;
-            timeValue.textContent = '0.00s';
-            generateData();
-            draw();
-        });
-
-        // Toggle matrices section
-        document.getElementById('toggleMatrices').addEventListener('click', () => {
-            const section = document.getElementById('matricesSection');
-            const toggle = document.getElementById('toggleMatrices');
-            if (section.classList.contains('visible')) {
-                section.classList.remove('visible');
-                toggle.textContent = 'Show System Matrices & Equations ▼';
-            } else {
-                section.classList.add('visible');
-                toggle.textContent = 'Hide System Matrices & Equations ▲';
-                updateStateDisplay(); // Update matrices display
-            }
-        });
-
-        // Animation loop
-        function animate() {
-            if (playing) {
-                currentTime += dt;
-                if (currentTime > maxTime) {
-                    currentTime = 0;
-                }
-                timeSlider.value = currentTime / dt;
-                timeValue.textContent = currentTime.toFixed(2) + 's';
-                draw();
-            }
-            requestAnimationFrame(animate);
-        }
-
-        // Initialize
-        generateData();
-        draw();
-        animate();
+        // Start the application
+        startApplication();
     </script>
 </body>
 </html>
