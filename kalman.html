@@ -395,19 +395,29 @@
                 <div class="slider-container">
                     <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
                     <select id="trajectorySelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
-                        <option value="figure8">Figure-8</option>
-                        <option value="circle">Circle</option>
-                        <option value="constantvelocity">Constant Velocity Line</option>
+                        <!-- Best matches for Constant-Acceleration model -->
+                        <option value="constaccel_line">Const-Accel Diagonal</option>
+                        <option value="constaccel_bezier">Const-Accel Bezier</option>
                         <option value="constantacceleration">Constant Acceleration Line</option>
+                        <option value="constantvelocity">Constant Velocity Line</option>
                         <option value="sinewave">Sine Wave</option>
                         <option value="parabolic">Parabolic Arc</option>
-                        <option value="square">Square</option>
+
+                        <!-- Smooth but changing acceleration direction/magnitude -->
+                        <option value="circle">Circle</option>
+                        <option value="lissajous">Lissajous</option>
+                        <option value="figure8">Figure-8</option>
+                        <option value="infinity">Infinity (∞)</option>
+                        <option value="clothoid">Euler Spiral (Clothoid)</option>
                         <option value="spiral">Spiral</option>
                         <option value="heart">Heart</option>
-                        <option value="star">Star</option>
-                        <option value="infinity">Infinity (∞)</option>
-                        <option value="stepfunction">Step Function</option>
+                        <option value="rfsmooth">Random Fourier (Smooth)</option>
+
+                        <!-- Discontinuities/sharp corners or stochastic -->
                         <option value="stopandgo">Stop and Go</option>
+                        <option value="stepfunction">Step Function</option>
+                        <option value="square">Square</option>
+                        <option value="star">Star</option>
                         <option value="randomwalk">Random Walk</option>
                     </select>
                 </div>
@@ -854,12 +864,8 @@
         class ConstantVelocityGenerator extends TrajectoryGenerator {
             generatePosition(t) {
                 const { maxTime, scale } = this.config;
-                const cycleTime = maxTime / 3;
-                const phase = (t % cycleTime) / cycleTime;
-                let progress;
-                if (phase <= 0.5) progress = phase * 2;
-                else progress = 2 - phase * 2;
-                const x = scale * (progress * 2 - 1);
+                const phase = Math.min(Math.max(t / maxTime, 0), 1); // 0→1 over run
+                const x = -scale + 2*scale*phase; // left to right exactly once
                 const y = 0;
                 return [x, y];
             }
@@ -869,15 +875,13 @@
         class ConstantAccelerationGenerator extends TrajectoryGenerator {
             generatePosition(t) {
                 const { maxTime, scale } = this.config;
-                const cycleTime = maxTime / 3;
-                const phase = (t % cycleTime) / cycleTime;
-                let progress;
-                if (phase <= 0.5) {
-                    const lp = phase * 2; progress = lp * lp;
-                } else {
-                    const lp = (phase - 0.5) * 2; progress = 1 - lp * lp;
-                }
-                const x = scale * (progress * 2 - 1);
+                const phase = Math.min(Math.max(t / maxTime, 0), 1); // 0→1
+                // constant accel from rest: x(t) = x0 + 0.5 a t²
+                const x0 = -scale;
+                const xf = scale;
+                const T = maxTime;
+                const a = 2*(xf - x0)/(T*T);  // so that x(T)=xf
+                const x = x0 + 0.5*a*t*t;
                 const y = 0;
                 return [x, y];
             }
@@ -945,6 +949,168 @@
                 return [x, y];
             }
             getName() { return 'Stop and Go'; }
+        }
+
+        /**
+         * Const-Accel Bezier (Quadratic) — zero jerk (C^2)
+         * p(τ) = (1-τ)^2 P0 + 2(1-τ)τ C + τ^2 P1, τ = t/T
+         * Quadratic in time ⇒ constant acceleration.
+         */
+        class ConstAccelBezierGenerator extends TrajectoryGenerator {
+            constructor(config = {}) {
+                super(config);
+                const s = this.config.scale;
+                // Endpoints left→right, control above center for a smooth arch
+                this.P0 = [-s, 0];
+                this.P1 = [ s, 0];
+                this.C  = [ 0, -0.8*s ]; // negative y to arc upward on canvas
+            }
+            generatePosition(t) {
+                const T = this.config.maxTime;
+                const τ = Math.min(Math.max(t / T, 0), 1);
+                const u = 1 - τ;
+                const bx = u*u*this.P0[0] + 2*u*τ*this.C[0] + τ*τ*this.P1[0];
+                const by = u*u*this.P0[1] + 2*u*τ*this.C[1] + τ*τ*this.P1[1];
+                return [bx, by];
+            }
+            getName() { return 'Const-Accel Bezier'; }
+        }
+
+        /**
+         * Const-Accel Diagonal — zero jerk
+         * Start at (-s,-s), end at (+s,+s) with v0=0, a chosen so x(T)=xf, y(T)=yf.
+         * x(t) = x0 + 0.5 a_x t^2,  a_x = 2(xf-x0)/T^2  (same for y).
+         */
+        class ConstAccelLineGenerator extends TrajectoryGenerator {
+            constructor(config = {}) {
+                super(config);
+                const s = this.config.scale;
+                this.x0 = -s; this.y0 = -s;
+                this.xf =  s; this.yf =  s;
+                const T = this.config.maxTime;
+                this.ax = 2*(this.xf - this.x0)/(T*T);
+                this.ay = 2*(this.yf - this.y0)/(T*T);
+            }
+            generatePosition(t) {
+                const x = this.x0 + 0.5*this.ax*t*t;
+                const y = this.y0 + 0.5*this.ay*t*t;
+                return [x, y];
+            }
+            getName() { return 'Const-Accel Diagonal'; }
+        }
+
+        /**
+         * Minimum-Jerk Arc (C∞)
+         * s(τ) = 10τ^3 − 15τ^4 + 6τ^5, τ∈[0,1]
+         * Moves from (-scale,0) to (+scale,0) with a smooth arch in Y.
+         * Real-world: human arm/robot point-to-point profiles.
+         */
+        class MinimumJerkGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const tau = Math.min(Math.max(t / maxTime, 0), 1);
+                const s = 10*tau**3 - 15*tau**4 + 6*tau**5; // C∞ easing
+                const x = -scale + 2*scale*s;
+                // smooth arch: C∞ bump via sine of eased progress
+                const A = 0.6 * scale;
+                const y = A * Math.sin(Math.PI * s);
+                return [x, y];
+            }
+            getName() { return 'Minimum-Jerk Arc'; }
+        }
+
+        /**
+         * Lissajous (C∞)
+         * Real-world: smooth cross-axis oscillations (e.g., drone).
+         */
+        class LissajousGenerator extends TrajectoryGenerator {
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                // 2 and 3 are co-prime => closed smooth figure over period
+                const w = 2*Math.PI/(maxTime/1.5);
+                const x = scale * Math.sin(2*w*t + Math.PI/6);
+                const y = scale * 0.7 * Math.sin(3*w*t);
+                return [x, y];
+            }
+            getName() { return 'Lissajous'; }
+        }
+
+        /**
+         * Euler Spiral / Clothoid (C∞)
+         * Curvature κ(s) increases linearly with arclength s.
+         * We numerically integrate a constant speed path where
+         * heading'(t) = κ0 + κ1 * s(t), with s'(t)=v.
+         * Real-world: comfortable steering (roads, rail, vehicles).
+         */
+        class ClothoidGenerator extends TrajectoryGenerator {
+            constructor(config = {}) {
+                super(config);
+                this.dt = 0.01;         // fine internal step for smooth precompute
+                this.v  = (this.config.scale * 3) / this.config.maxTime; // avg speed
+                this.k0 = 0.0;          // initial curvature
+                this.k1 = (Math.PI / (this.config.scale * 2)) / (this.v * this.config.maxTime); // gentle ramp
+                this.path = this.precomputePath();
+            }
+            precomputePath() {
+                const N = Math.max(2, Math.floor(this.config.maxTime / this.dt));
+                let x = -this.config.scale, y = 0, theta = 0, s = 0;
+                const pts = [];
+                for (let i = 0; i <= N; i++) {
+                    pts.push([x, y]);
+                    const kappa = this.k0 + this.k1 * s;   // κ(s) linear in arclength
+                    theta += kappa * this.v * this.dt;     // dθ/dt = κ * v
+                    x += this.v * Math.cos(theta) * this.dt;
+                    y += this.v * Math.sin(theta) * this.dt;
+                    s += this.v * this.dt;
+                }
+                // recentre roughly
+                const cx = (pts[0][0] + pts[pts.length-1][0]) / 2;
+                const cy = (pts[0][1] + pts[pts.length-1][1]) / 2;
+                return pts.map(p => [p[0] - cx, p[1] - cy]);
+            }
+            generatePosition(t) {
+                const idx = Math.min(
+                    Math.floor((t / this.config.maxTime) * (this.path.length - 1)),
+                    this.path.length - 1
+                );
+                return this.path[idx];
+            }
+            getName() { return 'Euler Spiral (Clothoid)'; }
+        }
+
+        /**
+         * Random Fourier (Smooth) (C∞)
+         * Low-frequency band-limited sum of sin/cos => smooth wandering path.
+         * Real-world: “meandering animal/boat” with bounded speed/acc.
+         */
+        class RandomFourierSmoothGenerator extends TrajectoryGenerator {
+            constructor(config = {}) {
+                super(config);
+                this.freqs = [1, 2, 3];    // very low harmonics over duration
+                this.ax = this.freqs.map(() => (Math.random()*2-1));
+                this.bx = this.freqs.map(() => (Math.random()*2-1));
+                this.ay = this.freqs.map(() => (Math.random()*2-1));
+                this.by = this.freqs.map(() => (Math.random()*2-1));
+                // normalize amplitude so we don’t exceed scale
+                const norm = Math.sqrt(
+                    [...this.ax, ...this.bx, ...this.ay, ...this.by]
+                        .reduce((s,v)=>s+v*v,0) / (4*this.freqs.length)
+                );
+                const target = 0.7; // use 70% of scale
+                this.gain = target / Math.max(norm, 1e-6);
+            }
+            generatePosition(t) {
+                const { maxTime, scale } = this.config;
+                const w0 = 2*Math.PI / maxTime; // base angular frequency
+                let x = 0, y = 0;
+                for (let i = 0; i < this.freqs.length; i++) {
+                    const w = this.freqs[i] * w0;
+                    x += this.ax[i]*Math.sin(w*t) + this.bx[i]*Math.cos(w*t);
+                    y += this.ay[i]*Math.sin(w*t) + this.by[i]*Math.cos(w*t);
+                }
+                return [scale * this.gain * x, scale * this.gain * y];
+            }
+            getName() { return 'Random Fourier (Smooth)'; }
         }
 
         // ================================
@@ -1086,6 +1252,82 @@
                     fadeSharpness: 2.5,
                     ...config
                 };
+                // Zoom / pan state
+                this.scale = 1.0;
+                this.panX = 0.0; // in world units (same units as positions)
+                this.panY = 0.0;
+                // Drag state
+                this.isDragging = false;
+                this.lastMouseX = 0;
+                this.lastMouseY = 0;
+
+                // Mouse-wheel zoom (zoom at cursor position)
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const rect = this.canvas.getBoundingClientRect();
+                    const mx = e.clientX - rect.left;
+                    const my = e.clientY - rect.top;
+                    const zoomFactor = Math.exp(-e.deltaY * 0.001); // smooth zoom
+                    this.zoomAt(mx, my, zoomFactor);
+                }, { passive: false });
+
+                // Drag-to-pan (mouse)
+                this.canvas.style.cursor = 'grab';
+                this.canvas.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    this.isDragging = true;
+                    this.canvas.style.cursor = 'grabbing';
+                    this.lastMouseX = e.clientX;
+                    this.lastMouseY = e.clientY;
+                });
+                window.addEventListener('mousemove', (e) => {
+                    if (!this.isDragging) return;
+                    e.preventDefault();
+                    const dx = e.clientX - this.lastMouseX;
+                    const dy = e.clientY - this.lastMouseY;
+                    // convert pixel delta to world units (inverse scale)
+                    this.panX += dx / this.scale;
+                    this.panY += dy / this.scale;
+                    this.lastMouseX = e.clientX;
+                    this.lastMouseY = e.clientY;
+                }, { passive: false });
+                const endDrag = () => {
+                    if (!this.isDragging) return;
+                    this.isDragging = false;
+                    this.canvas.style.cursor = 'grab';
+                };
+                window.addEventListener('mouseup', endDrag);
+                this.canvas.addEventListener('mouseleave', (e) => {
+                    if (!this.isDragging) return;
+                    endDrag();
+                });
+            }
+
+            // Reset zoom/pan to defaults
+            resetView() {
+                this.scale = 1.0;
+                this.panX = 0.0;
+                this.panY = 0.0;
+            }
+
+            // Keep the world point under the cursor stationary while zooming
+            zoomAt(canvasX, canvasY, factor) {
+                const cx = this.canvas.width * 0.5;
+                const cy = this.canvas.height * 0.5;
+                // canvas -> current world (before zoom)
+                const wx = (canvasX - cx) / this.scale - this.panX;
+                const wy = (canvasY - cy) / this.scale - this.panY;
+                // apply zoom
+                const newScale = Math.max(0.2, Math.min(5.0, this.scale * factor));
+                // solve pan' so that world point (wx,wy) maps back to (canvasX,canvasY)
+                this.panX = (canvasX - cx) / newScale - wx;
+                this.panY = (canvasY - cy) / newScale - wy;
+                this.scale = newScale;
+            }
+
+            // Attach double-click handler for reset
+            initializeResetHandler() {
+                this.canvas.addEventListener('dblclick', () => this.resetView());
             }
 
             fadeAlphaFromAge(ageSeconds) {
@@ -1119,7 +1361,10 @@
                 const { currentTime, dt, groundTruth, measurements, estimates, covariances } = data;
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.save();
+                // Apply view transform: center, then scale, then pan in world units
                 this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+                this.ctx.scale(this.scale, this.scale);
+                this.ctx.translate(this.panX, this.panY);
 
                 const timeIndex = Math.floor(currentTime / dt);
 
@@ -1157,7 +1402,7 @@
                     this.ctx.globalAlpha = a * 0.5;
                     this.ctx.fillStyle = '#0ff';
                     this.ctx.beginPath();
-                    this.ctx.arc(est[0], est[1], 2, 0, 2 * Math.PI);
+                    this.ctx.arc(est[0], est[1], 2 / this.scale, 0, 2 * Math.PI);
                     this.ctx.fill();
                 }
 
@@ -1170,7 +1415,7 @@
                         this.ctx.globalAlpha = a;
                         this.ctx.fillStyle = '#f0f';
                         this.ctx.beginPath();
-                        this.ctx.arc(m.pos[0], m.pos[1], 3, 0, 2 * Math.PI);
+                        this.ctx.arc(m.pos[0], m.pos[1], 3 / this.scale, 0, 2 * Math.PI);
                         this.ctx.fill();
                     }
                 });
@@ -1180,7 +1425,7 @@
                 if (timeIndex < groundTruth.length) {
                     this.ctx.fillStyle = '#0f0';
                     this.ctx.beginPath();
-                    this.ctx.arc(groundTruth[timeIndex][0], groundTruth[timeIndex][1], 6, 0, 2 * Math.PI);
+                    this.ctx.arc(groundTruth[timeIndex][0], groundTruth[timeIndex][1], 6 / this.scale, 0, 2 * Math.PI);
                     this.ctx.fill();
                 }
                 if (timeIndex < estimates.length) {
@@ -1200,7 +1445,7 @@
                         this.ctx.globalAlpha = 1.0;
                         this.ctx.fillStyle = '#0ff';
                         this.ctx.beginPath();
-                        this.ctx.arc(est[0], est[1], 6, 0, 2 * Math.PI);
+                        this.ctx.arc(est[0], est[1], 6 / this.scale, 0, 2 * Math.PI);
                         this.ctx.fill();
                     }
                 }
@@ -1425,7 +1670,7 @@
                     ...config
                 };
 
-                this.trajectoryType = 'figure8';
+                this.trajectoryType = 'constaccel_line';
                 this.trajectoryGenerator = this.createTrajectoryGenerator();
                 this.filter = new KalmanFilter2D({
                     dt: this.config.dt,
@@ -1460,6 +1705,18 @@
             createTrajectoryGenerator() {
                 const config = { maxTime: this.config.maxTime, scale: 150 };
                 switch (this.trajectoryType) {
+                    case 'minjerk':
+                        return new MinimumJerkGenerator(config);
+                    case 'lissajous':
+                        return new LissajousGenerator(config);
+                    case 'clothoid':
+                        return new ClothoidGenerator(config);
+                    case 'rfsmooth':
+                        return new RandomFourierSmoothGenerator(config);
+                    case 'constaccel_bezier':
+                        return new ConstAccelBezierGenerator(config);
+                    case 'constaccel_line':
+                        return new ConstAccelLineGenerator(config);
                     case 'figure8': return new Figure8Generator(config);
                     case 'circle': return new CircleGenerator(config);
                     case 'constantvelocity': return new ConstantVelocityGenerator(config);
@@ -1690,6 +1947,7 @@
             start() {
                 this.ui = new UIController(this);
                 this.draw();
+                this.visualization.initializeResetHandler();
                 this.animate();
             }
         }
