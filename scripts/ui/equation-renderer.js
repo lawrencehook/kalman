@@ -8,21 +8,35 @@ class EquationRenderer {
      * Create an equation section
      * @param {Object} config - Equation section configuration
      * @param {string} config.title - Section title
-     * @param {Array} config.equations - Array of equation strings
+     * @param {Array} config.equations - Array of equation strings (optional)
+     * @param {Array} config.variables - Array of {symbol, definition} objects (optional)
      * @param {string} config.id - Optional section ID
      */
     static createEquationSection(config) {
-        const { title, equations, id } = config;
+        const { title, equations, variables, id } = config;
         const sectionId = id ? `id="${id}"` : '';
 
-        const equationLines = equations.map(equation => 
-            `<div class="equation-line">${equation}</div>`
-        ).join('');
+        let content;
+        if (variables) {
+            // Render compact variable symbols grid
+            const variableSymbols = variables.map(variable => 
+                `<span class="variable-symbol" data-tooltip="${variable.definition}">${variable.symbol}</span>`
+            ).join('');
+            content = `<div class="variables-grid">${variableSymbols}</div>`;
+        } else if (equations) {
+            // Render regular equation lines
+            const equationLines = equations.map(equation => 
+                `<div class="equation-line">${equation}</div>`
+            ).join('');
+            content = equationLines;
+        } else {
+            content = '';
+        }
 
         return `
             <div class="equation-section" ${sectionId}>
                 <div class="eq-label">${title}</div>
-                ${equationLines}
+                ${content}
             </div>
         `;
     }

@@ -14,6 +14,7 @@ body {
 .viz-container {
     flex: 1;
     min-width: 650px;
+    position: relative;
 }
 #canvas {
     border: 1px solid #444;
@@ -401,4 +402,72 @@ button:hover {
     text-align: center;
     border-bottom: 1px solid #333;
     padding-bottom: 6px;
+}
+
+/* Variable symbols grid styling */
+.variables-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    justify-content: center;
+    margin: 6px 0;
+}
+
+.variable-symbol {
+    font-family: 'Courier New', monospace;
+    color: #4af;
+    background: #0a0a0a;
+    padding: 3px 6px;
+    border-radius: 3px;
+    border: 1px solid #333;
+    cursor: help;
+    position: relative;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.variable-symbol:hover {
+    background: #1a1a1a;
+    border-color: #4af;
+}
+
+.variable-symbol:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a1a;
+    border: 1px solid #4af;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 10px;
+    line-height: 1.3;
+    width: 200px;
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    font-weight: normal;
+    color: #fff;
+}
+
+/* Canvas overlay controls */
+.canvas-controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: flex;
+    gap: 8px;
+    background: rgba(42, 42, 42, 0.9);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.canvas-controls button {
+    padding: 4px 8px;
+    margin: 0;
+    font-size: 11px;
+    min-width: auto;
 }

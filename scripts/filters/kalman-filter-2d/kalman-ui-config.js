@@ -131,6 +131,22 @@ class KalmanFilter2DUIConfig {
                 tooltip: "The mathematical operations performed during prediction and update steps",
                 sections: [
                     {
+                        title: "Variables (hover for definitions):",
+                        variables: [
+                            { symbol: "x̂ₖ|ₖ", definition: "State estimate at time k given measurements up to k" },
+                            { symbol: "Pₖ|ₖ", definition: "Error covariance matrix at time k given measurements up to k" },
+                            { symbol: "zₖ", definition: "Measurement vector at time k" },
+                            { symbol: "yₖ", definition: "Innovation/residual (measurement - prediction)" },
+                            { symbol: "F", definition: "State transition matrix (predicts next state)" },
+                            { symbol: "H", definition: "Measurement matrix (maps state to measurement)" },
+                            { symbol: "Q", definition: "Process noise covariance (model uncertainty)" },
+                            { symbol: "R", definition: "Measurement noise covariance (sensor uncertainty)" },
+                            { symbol: "Kₖ", definition: "Kalman gain (optimal blending weights)" },
+                            { symbol: "Sₖ", definition: "Innovation covariance (H×P×H<sup>T</sup> + R)" },
+                            { symbol: "I", definition: "Identity matrix" }
+                        ]
+                    },
+                    {
                         title: "Prediction Step (every 0.05s):",
                         equations: [
                             "x̂ₖ₊₁|ₖ = F × x̂ₖ|ₖ",
