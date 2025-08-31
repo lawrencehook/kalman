@@ -34,7 +34,7 @@
         },
 
         // Extract filter-specific data
-        extractData: (filterInstance, filterState) => {
+        extractData: (filterInstance) => {
             if (!filterInstance.initialized) {
                 return {};
             }
@@ -59,6 +59,15 @@
             }
             
             return immData;
+        },
+
+        // Provide error graph legend configuration
+        getErrorGraphLegend: () => {
+            return [
+                { color: '#f44', width: 12, height: 2, label: 'Actual Error' },
+                { color: '#fa4', width: 12, height: 2, label: '95% Confidence' },
+                { color: '#4af', width: 2, height: 12, label: 'Current Time' }
+            ];
         },
 
         // Update noise parameters

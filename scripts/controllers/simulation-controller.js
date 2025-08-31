@@ -248,7 +248,7 @@ class SimulationController {
             // Extract filter-specific data using registry
             let filterSpecificData = {};
             try {
-                filterSpecificData = FilterRegistry.extractFilterData(this.filterType, this.filter, filterState);
+                filterSpecificData = FilterRegistry.extractFilterData(this.filterType, this.filter);
             } catch (error) {
                 console.warn('Filter data extraction failed:', error.message);
             }
@@ -347,7 +347,7 @@ class SimulationController {
             errorHistory: this.errorHistory,
             confidenceHistory: this.confidenceHistory,
             filterStates: this.filterStates
-        });
+        }, this.filterType);
 
         const timeIndex = Math.floor(this.currentTime / this.config.dt);
         if (timeIndex < this.filterStates.length && this.filterUIManager) {

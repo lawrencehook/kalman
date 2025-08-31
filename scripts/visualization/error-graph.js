@@ -15,7 +15,7 @@ class ErrorGraphVisualization {
         };
     }
 
-    draw(data) {
+    draw(data, filterType = null) {
         const { currentTime, maxTime, dt, errorHistory, confidenceHistory, filterStates } = data;
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -191,12 +191,60 @@ class ErrorGraphVisualization {
         this.ctx.lineTo(currentTimeX, plotTop + plotHeight);
         this.ctx.stroke();
 
+        // Draw legend in bottom right using filter-supplied configuration
+        this.drawLegend(plotLeft, plotTop, plotWidth, plotHeight, filterType);
+
         // Draw filter-specific information if available
         if (filterStates && filterStates.length > 0 && filterStates[0].filterSpecificData && filterStates[0].filterSpecificData.modelProbabilities) {
             this.drawModelProbabilities(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt);
         }
 
         this.ctx.restore();
+    }
+
+    drawLegend(plotLeft, plotTop, plotWidth, plotHeight, filterType) {
+        // Get legend items from filter registry
+        let legendItems;
+        if (filterType && typeof FilterRegistry !== 'undefined') {
+            legendItems = FilterRegistry.getErrorGraphLegend(filterType);
+        } else {
+            // Fallback to default legend
+            legendItems = [
+                { color: '#f44', width: 12, height: 2, label: 'Actual Error' },
+                { color: '#fa4', width: 12, height: 2, label: '95% Confidence' },
+                { color: '#4af', width: 2, height: 12, label: 'Current Time' }
+            ];
+        }
+
+        // Position legend in bottom right corner
+        const legendWidth = 180;
+        const legendHeight = 80;
+        const legendX = plotLeft + plotWidth - legendWidth - 10;
+        const legendY = plotTop + plotHeight - legendHeight - 10;
+
+        // Draw legend background
+        this.ctx.fillStyle = 'rgba(42, 42, 42, 0.9)';
+        this.ctx.strokeStyle = '#444';
+        this.ctx.lineWidth = 1;
+        this.ctx.fillRect(legendX, legendY, legendWidth, legendHeight);
+        this.ctx.strokeRect(legendX, legendY, legendWidth, legendHeight);
+
+        let itemY = legendY + 15;
+        this.ctx.font = '11px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+
+        legendItems.forEach(item => {
+            // Draw color indicator
+            this.ctx.fillStyle = item.color;
+            this.ctx.fillRect(legendX + 10, itemY - item.height / 2, item.width, item.height);
+            
+            // Draw label
+            this.ctx.fillStyle = '#fff';
+            this.ctx.fillText(item.label, legendX + 30, itemY);
+            
+            itemY += 18;
+        });
     }
 
     drawModelProbabilities(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt) {

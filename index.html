@@ -107,18 +107,6 @@
                 <canvas id="errorGraph" width="650" height="150"></canvas>
                 <div class="error-legend">
                     <div class="legend-item">
-                        <div class="legend-color" style="background: #f44;"></div>
-                        <span>Actual Error</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #fa4;"></div>
-                        <span>95% Confidence Bound</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: #4af; width: 2px; height: 20px;"></div>
-                        <span>Current Time</span>
-                    </div>
-                    <div class="legend-item">
                         <span data-tooltip="Coverage over the entire simulated duration: fraction of timestamps where ground truth is inside the estimate's 95% error ellipse (Mahalanobis distance² ≤ 5.991)." style="cursor: help;">
                             Total 95% Coverage: <span id="total-coverage-95" style="color: #4af; font-weight: bold;">--</span>
                         </span>
@@ -155,7 +143,7 @@
     <!-- Filter implementations -->
     <script src="scripts/filters/filter-base.js"></script>
     <script src="scripts/filters/kalman-filter-2d/kalman-filter-2d.js"></script>
-    <script src="scripts/filters/imm-filter.js"></script>
+    <script src="scripts/filters/imm/imm-filter.js"></script>
 
     <!-- UI components -->
     <script src="scripts/ui/matrix-renderer.js"></script>
@@ -166,11 +154,11 @@
 
     <!-- Filter-specific UI configurations -->
     <script src="scripts/filters/kalman-filter-2d/kalman-ui-config.js"></script>
-    <script src="scripts/filters/imm-ui-config.js"></script>
+    <script src="scripts/filters/imm/imm-ui-config.js"></script>
     
     <!-- Filter module exports (must be loaded after UI configs) -->
     <script src="scripts/filters/kalman-filter-2d/index.js"></script>
-    <script src="scripts/filters/imm-index.js"></script>
+    <script src="scripts/filters/imm/index.js"></script>
 
     <!-- Visualization components -->
     <script src="scripts/visualization/visualization-engine.js"></script>

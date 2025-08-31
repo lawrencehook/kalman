@@ -79,18 +79,17 @@ class FilterRegistry {
     }
 
     /**
-     * Extract filter-specific data from filter state
+     * Extract filter-specific data from filter instance
      * @param {string} filterKey - Filter identifier
      * @param {Object} filterInstance - The filter instance
-     * @param {Object} filterState - Current filter state data
      * @returns {Object} Filter-specific data
      */
-    static extractFilterData(filterKey, filterInstance, filterState) {
+    static extractFilterData(filterKey, filterInstance) {
         const filterConfig = this.#filters.get(filterKey);
         if (!filterConfig || !filterConfig.extractData) {
             return {};
         }
-        return filterConfig.extractData(filterInstance, filterState);
+        return filterConfig.extractData(filterInstance);
     }
 
     /**
@@ -106,6 +105,24 @@ class FilterRegistry {
             throw new Error(`Filter ${filterKey} does not support noise updates`);
         }
         filterConfig.updateNoise(filterInstance, measurementNoise, processNoise);
+    }
+
+    /**
+     * Get error graph legend configuration for a filter
+     * @param {string} filterKey - Filter identifier
+     * @returns {Array} Legend configuration array
+     */
+    static getErrorGraphLegend(filterKey) {
+        const filterConfig = this.#filters.get(filterKey);
+        if (!filterConfig || !filterConfig.getErrorGraphLegend) {
+            // Return default legend if filter doesn't provide one
+            return [
+                { color: '#f44', width: 12, height: 2, label: 'Actual Error' },
+                { color: '#fa4', width: 12, height: 2, label: '95% Confidence' },
+                { color: '#4af', width: 2, height: 12, label: 'Current Time' }
+            ];
+        }
+        return filterConfig.getErrorGraphLegend();
     }
 
     /**
