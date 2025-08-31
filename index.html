@@ -25,10 +25,9 @@
             </div>
 
             <div class="dropdown-container">
-                <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
+                <label data-tooltip="Choose the estimation algorithm. Different filters use different approaches to track object motion.">Filter:</label>
                 <select id="filterSelect">
-                    <option value="kf" selected>Kalman (CA 6-state)</option>
-                    <option value="imm">IMM (2-model: CA low/high noise)</option>
+                    <!-- Options populated dynamically by FilterRegistry -->
                 </select>
             </div>
 
@@ -150,6 +149,9 @@
     <script src="scripts/trajectory/mathematical-generators.js"></script>
     <script src="scripts/trajectory/random-generators.js"></script>
 
+    <!-- Filter registry system -->
+    <script src="scripts/filters/filter-registry.js"></script>
+    
     <!-- Filter implementations -->
     <script src="scripts/filters/filter-base.js"></script>
     <script src="scripts/filters/kalman-filter-2d/kalman-filter-2d.js"></script>
@@ -165,6 +167,10 @@
     <!-- Filter-specific UI configurations -->
     <script src="scripts/filters/kalman-filter-2d/kalman-ui-config.js"></script>
     <script src="scripts/filters/imm-ui-config.js"></script>
+    
+    <!-- Filter module exports (must be loaded after UI configs) -->
+    <script src="scripts/filters/kalman-filter-2d/index.js"></script>
+    <script src="scripts/filters/imm-index.js"></script>
 
     <!-- Visualization components -->
     <script src="scripts/visualization/visualization-engine.js"></script>

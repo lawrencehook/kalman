@@ -191,15 +191,15 @@ class ErrorGraphVisualization {
         this.ctx.lineTo(currentTimeX, plotTop + plotHeight);
         this.ctx.stroke();
 
-        // Draw IMM-specific information if available
-        if (filterStates && filterStates.length > 0 && filterStates[0].immData) {
-            this.drawIMMInfo(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt);
+        // Draw filter-specific information if available
+        if (filterStates && filterStates.length > 0 && filterStates[0].filterSpecificData && filterStates[0].filterSpecificData.modelProbabilities) {
+            this.drawModelProbabilities(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt);
         }
 
         this.ctx.restore();
     }
 
-    drawIMMInfo(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt) {
+    drawModelProbabilities(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt) {
         // Draw model probability traces in the bottom portion of the graph
         const immHeight = Math.min(60, plotHeight * 0.3); // Use bottom 30% or max 60px
         const immTop = plotTop + plotHeight - immHeight;
@@ -228,9 +228,9 @@ class ErrorGraphVisualization {
         let firstPoint = true;
         for (let i = 0; i < filterStates.length; i++) {
             const state = filterStates[i];
-            if (state.immData && state.immData.modelProbabilities) {
+            if (state.filterSpecificData && state.filterSpecificData.modelProbabilities) {
                 const t = i * dt;
-                const prob0 = state.immData.modelProbabilities[0];
+                const prob0 = state.filterSpecificData.modelProbabilities[0];
                 const [x, y] = dataToIMMCanvas(t, prob0);
                 if (firstPoint) {
                     this.ctx.moveTo(x, y);
@@ -250,9 +250,9 @@ class ErrorGraphVisualization {
         firstPoint = true;
         for (let i = 0; i < filterStates.length; i++) {
             const state = filterStates[i];
-            if (state.immData && state.immData.modelProbabilities) {
+            if (state.filterSpecificData && state.filterSpecificData.modelProbabilities) {
                 const t = i * dt;
-                const prob1 = state.immData.modelProbabilities[1];
+                const prob1 = state.filterSpecificData.modelProbabilities[1];
                 const [x, y] = dataToIMMCanvas(t, prob1);
                 if (firstPoint) {
                     this.ctx.moveTo(x, y);
@@ -288,8 +288,8 @@ class ErrorGraphVisualization {
         let prevActiveModel = null;
         for (let i = 0; i < filterStates.length; i++) {
             const state = filterStates[i];
-            if (state.immData && state.immData.activeModel !== undefined) {
-                const currentActiveModel = state.immData.activeModel;
+            if (state.filterSpecificData && state.filterSpecificData.activeModel !== undefined) {
+                const currentActiveModel = state.filterSpecificData.activeModel;
                 if (prevActiveModel !== null && currentActiveModel !== prevActiveModel) {
                     // Model switch detected
                     const t = i * dt;

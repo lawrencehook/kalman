@@ -48,16 +48,11 @@ class FilterUIManager {
      * @returns {Object|null} The configuration object
      */
     getFilterConfig(filterType) {
-        switch (filterType) {
-            case 'kalman-filter-2d':
-                return KalmanFilter2DUIConfig.getConfig();
-            case 'imm':
-                return IMMUIConfig.getConfig();
-            // Future filters can be added here
-            // case 'particle-filter':
-            //     return ParticleFilterUIConfig.getConfig();
-            default:
-                return null;
+        try {
+            return FilterRegistry.getUIConfig(filterType);
+        } catch (error) {
+            console.error(`Failed to get UI config for filter: ${filterType}`, error);
+            return null;
         }
     }
 
@@ -83,20 +78,22 @@ class FilterUIManager {
         // Generate sections
         const stateVectorHtml = StateRenderer.createStateVector(config.stateVector);
         
-        // IMM-specific sections
-        let modelProbabilitiesHtml = '';
-        let activeModelHtml = '';
+        // Filter-specific sections (dynamic based on config)
+        let filterSpecificHtml = '';
+        
+        // Model probabilities section (if supported)
         if (config.modelProbabilities) {
-            // Convert models to metrics format for StateRenderer
             const modelProbConfig = {
                 title: config.modelProbabilities.title,
                 tooltip: config.modelProbabilities.tooltip,
                 metrics: config.modelProbabilities.models
             };
-            modelProbabilitiesHtml = StateRenderer.createMetricsSection(modelProbConfig);
+            filterSpecificHtml += StateRenderer.createMetricsSection(modelProbConfig);
         }
+        
+        // Active model section (if supported)
         if (config.activeModel) {
-            activeModelHtml = `
+            filterSpecificHtml += `
                 <div class="state-section">
                     <h3 data-tooltip="${config.activeModel.tooltip}">${config.activeModel.title}</h3>
                     <div class="state-row">
@@ -112,7 +109,7 @@ class FilterUIManager {
         const kalmanGainHtml = StateRenderer.createMatrixSection(config.kalmanGain);
 
         // Combine all sections
-        const fullHtml = titleHtml + stateVectorHtml + modelProbabilitiesHtml + activeModelHtml + 
+        const fullHtml = titleHtml + stateVectorHtml + filterSpecificHtml + 
                         positionCovarianceHtml + errorMetricsHtml + innovationHtml + kalmanGainHtml;
 
         this.statePanelContainer.innerHTML = fullHtml;
@@ -200,7 +197,7 @@ class FilterUIManager {
             MatrixRenderer.updateMatrix('position-covariance-matrix', filterState.positionCovariance);
         }
 
-        // Update model probabilities (IMM-specific)
+        // Update filter-specific sections (dynamic based on config)
         if (additionalData.modelProbabilities && config.modelProbabilities) {
             config.modelProbabilities.models.forEach((model, index) => {
                 const probability = additionalData.modelProbabilities[index];
@@ -210,7 +207,6 @@ class FilterUIManager {
             });
         }
 
-        // Update active model (IMM-specific)
         if (additionalData.activeModel !== undefined && config.activeModel) {
             const modelName = additionalData.activeModel === 0 ? 'CA Low-Noise' : 'CA High-Noise';
             StateRenderer.updateStateValue(config.activeModel.id, modelName);

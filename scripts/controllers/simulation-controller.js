@@ -15,7 +15,7 @@ class SimulationController {
 
         this.trajectoryType = 'circle';
         this.trajectoryGenerator = this.createTrajectoryGenerator();
-        this.filterType = 'kf';
+        this.filterType = 'kalman-2d'; // Default filter type
         this.filter = this.createFilter();
         this.visualization = new VisualizationEngine('canvas');
         this.errorGraph = new ErrorGraphVisualization('errorGraph');
@@ -37,31 +37,22 @@ class SimulationController {
     }
 
     createFilter() {
-        const base = {
+        const baseConfig = {
             dt: this.config.dt,
             measurementNoise: this.getMeasurementNoise(),
             processNoise: this.getProcessNoise()
         };
-        if (this.filterType === 'imm') {
-            return new IMMFilter({
-                dt: base.dt,
-                measurementNoise: base.measurementNoise,
-                processNoiseSlow: Math.max(0.1, base.processNoise * 0.5),
-                processNoiseFast: base.processNoise * 3.0,
-                trans: [[0.94, 0.06],[0.06, 0.94]]
-            });
-        }
-        return new KalmanFilter2D(base);
+        
+        return FilterRegistry.createFilter(this.filterType, baseConfig);
     }
 
-    setFilterType(kind) {
-        this.filterType = (kind === 'imm') ? 'imm' : 'kf';
+    setFilterType(filterType) {
+        this.filterType = filterType;
         this.filter = this.createFilter();
         
         // Update UI configuration based on filter type
         if (this.filterUIManager) {
-            const uiFilterType = this.filterType === 'imm' ? 'imm' : 'kalman-filter-2d';
-            this.filterUIManager.loadFilterUI(uiFilterType, this.filter);
+            this.filterUIManager.loadFilterUI(this.filterType, this.filter);
         }
         
         // Update canvas title
@@ -254,20 +245,12 @@ class SimulationController {
                 posCov2x2 = MatrixUtils.extractSubmatrix(this.filter.covariance, 0, 1, 0, 1);
             }
 
-            // IMM-specific data
-            let immData = {};
-            if (this.filterType === 'imm' && this.filter.initialized) {
-                immData.modelProbabilities = [...this.filter.mu]; // copy model probabilities
-                immData.activeModel = this.filter.mu[0] >= this.filter.mu[1] ? 0 : 1;
-                
-                // Calculate model entropy: -Σ μ log μ
-                let entropy = 0;
-                for (const mu of this.filter.mu) {
-                    if (mu > 1e-10) { // avoid log(0)
-                        entropy -= mu * Math.log(mu);
-                    }
-                }
-                immData.modelEntropy = entropy;
+            // Extract filter-specific data using registry
+            let filterSpecificData = {};
+            try {
+                filterSpecificData = FilterRegistry.extractFilterData(this.filterType, this.filter, filterState);
+            } catch (error) {
+                console.warn('Filter data extraction failed:', error.message);
             }
 
             this.filterStates.push({
@@ -282,7 +265,7 @@ class SimulationController {
                 bootstrapCount: Math.min(buffer.length, bootstrapNeeded),
                 bootstrapNeeded: bootstrapNeeded,
                 coveragePct: coverageTotal > 0 ? (coverageHits / coverageTotal) : null,
-                immData: immData
+                filterSpecificData: filterSpecificData
             });
         }
 
@@ -294,9 +277,14 @@ class SimulationController {
     updateNoiseParams() {
         this.config.measurementRatio = this.getMeasurementRatio();
         this.updateMeasurementRate();
-        if (this.filter.updateNoise) {
-            this.filter.updateNoise(this.getMeasurementNoise(), this.getProcessNoise());
+        
+        // Use registry to update noise parameters in a filter-agnostic way
+        try {
+            FilterRegistry.updateNoise(this.filterType, this.filter, this.getMeasurementNoise(), this.getProcessNoise());
+        } catch (error) {
+            console.warn('Filter noise update not supported:', error.message);
         }
+        
         this.generateData();
         this.draw();
     }
@@ -399,17 +387,17 @@ class SimulationController {
                     errorMetrics['coverage-95'] = (filterState.coveragePct * 100).toFixed(1) + '%';
                 }
                 
-                // Add IMM-specific error metrics
-                if (filterState.immData && filterState.immData.modelEntropy !== undefined) {
-                    errorMetrics['model-entropy'] = filterState.immData.modelEntropy.toFixed(3);
+                // Add filter-specific error metrics
+                if (filterState.filterSpecificData && filterState.filterSpecificData.modelEntropy !== undefined) {
+                    errorMetrics['model-entropy'] = filterState.filterSpecificData.modelEntropy.toFixed(3);
                 }
             }
             
             // Prepare additional data for UI
             const additionalData = {
                 errorMetrics: errorMetrics,
-                modelProbabilities: filterState.immData ? filterState.immData.modelProbabilities : null,
-                activeModel: filterState.immData ? filterState.immData.activeModel : null
+                modelProbabilities: filterState.filterSpecificData ? filterState.filterSpecificData.modelProbabilities : null,
+                activeModel: filterState.filterSpecificData ? filterState.filterSpecificData.activeModel : null
             };
             
             this.filterUIManager.updateDisplay(formattedFilterState, additionalData);
@@ -438,13 +426,13 @@ class SimulationController {
     updateCanvasTitle() {
         const titleElement = document.getElementById('canvas-title');
         if (titleElement) {
-            let title = '';
-            if (this.filterType === 'imm') {
-                title = 'IMM Filter (2-Model)';
-            } else {
-                title = '2D Kalman Filter';
+            try {
+                const displayInfo = FilterRegistry.getDisplayInfo(this.filterType);
+                titleElement.textContent = displayInfo.canvasTitle;
+            } catch (error) {
+                console.warn('Could not get filter display info:', error.message);
+                titleElement.textContent = 'Unknown Filter';
             }
-            titleElement.textContent = title;
         }
     }
 
