@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Kalman Filter Visualization</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1 style="text-align: center; margin: 10px 0; font-size: 24px;">2D Kalman Filter - Multi-Shape Tracking</h1>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #0f0;"></div>
+            <span>Ground Truth</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f0f;"></div>
+            <span>Measurements</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #0ff; width: 6px; height: 6px; border-radius: 3px;"></div>
+            <span>Kalman Estimates</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: rgba(0,255,255,0.3);"></div>
+            <span>95% Confidence</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="viz-container">
+            <canvas id="canvas" width="650" height="450"></canvas>
+
+            <!-- Error Graph -->
+            <div class="error-graph-container">
+                <h3 style="text-align: center; color: #4af; margin: 10px 0 5px 0; font-size: 14px;">Position Error vs 95% Confidence Bound</h3>
+                <canvas id="errorGraph" width="650" height="150"></canvas>
+                <div class="error-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f44;"></div>
+                        <span>Actual Error</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fa4;"></div>
+                        <span>95% Confidence Bound</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4af; width: 2px; height: 20px;"></div>
+                        <span>Current Time</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="slider-container">
+                    <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
+                    <select id="trajectorySelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                        <option value="constantacceleration">Constant Acceleration Line</option>
+                        <option value="constantvelocity">Constant Velocity Line</option>
+                        <option value="sinewave">Sine Wave</option>
+                        <option value="parabolic">Parabolic Arc</option>
+                        <option value="circle" selected>Circle</option>
+                        <option value="infinity">Infinity (∞)</option>
+                        <option value="star">Star</option>
+                    </select>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
+                    <select id="filterSelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                        <option value="kf" selected>Kalman (CA 6-state)</option>
+                        <option value="imm">IMM (2-model: smooth ↔ maneuver)</option>
+                    </select>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurement frequency is configurable via the Measurement Rate Ratio slider.">Time:</label>
+                    <input type="range" id="timeSlider" min="0" max="100" value="0" step="1">
+                    <span class="value" id="timeValue">0.00s</span>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Standard deviation of noise added to position measurements. Higher values make measurements less reliable, causing the filter to trust its model more.">Measurement Noise (σ):</label>
+                    <input type="range" id="measurementNoise" min="1" max="50" value="5" step="1">
+                    <span class="value" id="measurementNoiseValue">15</span>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Uncertainty in the motion model. Higher values mean the filter expects more random accelerations, making it trust measurements more and predictions less.">Process Noise:</label>
+                    <input type="range" id="processNoise" min="0.1" max="5" value="1" step="0.1">
+                    <span class="value" id="processNoiseValue">1.0</span>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="How often measurements arrive relative to predictions. Higher values = more frequent measurements. Currently prediction rate is 20Hz (every 0.05s).">Measurement Rate Ratio:</label>
+                    <input type="range" id="measurementRatio" min="0.5" max="8" value="2" step="0.5">
+                    <span class="value" id="measurementRatioValue">2.0x</span>
+                </div>
+
+                <div style="text-align: center; margin-top: 10px;">
+                    <button id="playBtn">Play/Pause</button>
+                    <button id="stepBtn">Step</button>
+                    <button id="resetBtn">Reset</button>
+                </div>
+
+                <!-- Fixed, whole-duration metric -->
+                <div class="slider-container">
+                    <label data-tooltip="Coverage over the entire simulated duration: fraction of timestamps where ground truth is inside the estimate's 95% error ellipse (Mahalanobis distance² ≤ 5.991).">
+                        Total Ellipse Coverage (95%):
+                    </label>
+                    <span class="value" id="total-coverage-95">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="state-panel">
+            <h2 style="color: #4af; text-align: center; margin-top: 0; cursor: help;" data-tooltip="The Kalman filter waits for a few measurements to initialize, then fuses measurements with the motion model.">Filter State</h2>
+
+            <div id="measurementStatus" class="measurement-indicator bootstrapping">
+                Bootstrapping (0/3)
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The filter's current estimate of the object's state, including position, velocity, and acceleration in both X and Y dimensions.">State Vector x̂</h3>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated X position of the object in pixels from center">Position X:</span>
+                    <span class="state-value" id="state-x">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated Y position of the object in pixels from center">Position Y:</span>
+                    <span class="state-value" id="state-y">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated velocity in X direction (pixels per second)">Velocity X:</span>
+                    <span class="state-value" id="state-vx">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated velocity in Y direction (pixels per second)">Velocity Y:</span>
+                    <span class="state-value" id="state-vy">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated acceleration in X direction (pixels per second²)">Accel X:</span>
+                    <span class="state-value" id="state-ax">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Estimated acceleration in Y direction (pixels per second²)">Accel Y:</span>
+                    <span class="state-value" id="state-ay">--</span>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The covariance matrix quantifies the uncertainty in position estimates. Larger values mean less confidence. The ellipse visualization is derived from this matrix.">Position Covariance P</h3>
+                <div class="matrix-container">
+                    <div class="matrix-brackets">
+                        <div class="matrix-grid matrix-2x2">
+                            <div class="matrix-cell" id="p00">--</div>
+                            <div class="matrix-cell" id="p01">--</div>
+                            <div class="matrix-cell" id="p10">--</div>
+                            <div class="matrix-cell" id="p11">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="Metrics comparing the filter's estimates to ground truth and showing the filter's confidence levels.">Error Metrics</h3>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Euclidean distance between the filter estimate and ground truth position">Position Error:</span>
+                    <span class="state-value" id="pos-error">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Square root of X variance from covariance matrix. Represents 1-sigma uncertainty in X direction">Std Dev X:</span>
+                    <span class="state-value" id="std-x">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Square root of Y variance from covariance matrix. Represents 1-sigma uncertainty in Y direction">Std Dev Y:</span>
+                    <span class="state-value" id="std-y">--</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label" data-tooltip="Share of time (up to current t) that the true position lay inside the filter's 95% error ellipse (Mahalanobis distance² ≤ χ²₂,0.95 ≈ 5.991).">
+                        Ellipse Coverage (95%):
+                    </span>
+                    <span class="state-value" id="coverage-95">--</span>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The innovation (or residual) is the difference between what was measured and what the filter predicted. Large innovations indicate surprising measurements.">Innovation (Residual)</h3>
+                <div class="matrix-container">
+                    <div class="matrix-brackets">
+                        <div class="matrix-grid matrix-2x1" style="grid-template-columns: 1fr;">
+                            <div class="matrix-cell" id="innovation-x">--</div>
+                            <div class="matrix-cell" id="innovation-y">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The Kalman gain determines how much the filter trusts new measurements versus its predictions. Higher values mean more trust in measurements, lower values mean more trust in the model.">Kalman Gain K</h3>
+                <div class="matrix-container">
+                    <div class="matrix-brackets">
+                        <div class="matrix-grid matrix-6x2">
+                            <div class="matrix-cell" id="k00">--</div>
+                            <div class="matrix-cell" id="k01">--</div>
+                            <div class="matrix-cell" id="k10">--</div>
+                            <div class="matrix-cell" id="k11">--</div>
+                            <div class="matrix-cell" id="k20">--</div>
+                            <div class="matrix-cell" id="k21">--</div>
+                            <div class="matrix-cell" id="k30">--</div>
+                            <div class="matrix-cell" id="k31">--</div>
+                            <div class="matrix-cell" id="k40">--</div>
+                            <div class="matrix-cell" id="k41">--</div>
+                            <div class="matrix-cell" id="k50">--</div>
+                            <div class="matrix-cell" id="k51">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Matrices Section -->
+    <div class="system-matrices">
+        <div class="toggle-section" id="toggleMatrices">
+            Show System Matrices & Equations ▼
+        </div>
+
+        <div class="matrices-section" id="matricesSection">
+            <div class="matrices-grid">
+                <div class="matrix-display">
+                    <div class="matrix-title">State Transition F (6×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Predicts next state from current state</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-F" class="matrix-grid matrix-6x6"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Measurement H (2×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Maps state to expected measurement (extracts position)</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-H" class="matrix-grid matrix-2x6"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Process Noise Q (6×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Uncertainty added during prediction</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-Q" class="matrix-grid matrix-6x6"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Measurement Noise R (2×2)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Expected measurement uncertainty</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-R" class="matrix-grid matrix-2x2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Full Covariance P (6×6)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">Uncertainty in all state variables</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-P-full" class="matrix-grid matrix-6x6"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="matrix-display">
+                    <div class="matrix-title">Innovation Covariance S (2×2)</div>
+                    <div style="font-size: 9px; color: #888; margin-bottom: 8px;">S = H×P×H<sup>T</sup> + R (measurement prediction uncertainty)</div>
+                    <div class="matrix-container">
+                        <div class="matrix-brackets">
+                            <div id="matrix-S" class="matrix-grid matrix-2x2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="state-section">
+                <h3 data-tooltip="The mathematical operations performed during prediction and update steps">Filter Equations</h3>
+
+                <div class="equation-section">
+                    <div class="eq-label">Prediction Step (every 0.05s):</div>
+                    <div class="equation-line">x̂ₖ₊₁|ₖ = F × x̂ₖ|ₖ</div>
+                    <div class="equation-line">Pₖ₊₁|ₖ = F × Pₖ|ₖ × F<sup>T</sup> + Q</div>
+                </div>
+
+                <div class="equation-section" id="updateEquations">
+                    <div class="eq-label">Update Step (when measurement arrives):</div>
+                    <div class="equation-line">yₖ = zₖ - H × x̂ₖ|ₖ₋₁ (innovation)</div>
+                    <div class="equation-line">Sₖ = H × Pₖ|ₖ₋₁ × H<sup>T</sup> + R</div>
+                    <div class="equation-line">Kₖ = Pₖ|ₖ₋₁ × H<sup>T</sup> × Sₖ⁻¹</div>
+                    <div class="equation-line">x̂ₖ|ₖ = x̂ₖ|ₖ₋₁ + Kₖ × yₖ</div>
+                    <div class="equation-line">Pₖ|ₖ = (I - Kₖ × H) × Pₖ|ₖ₋₁</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

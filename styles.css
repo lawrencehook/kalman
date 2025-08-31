@@ -1,0 +1,376 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #1a1a1a;
+    color: #fff;
+}
+.main-container {
+    display: flex;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    align-items: flex-start;
+}
+.viz-container {
+    flex: 1;
+}
+#canvas {
+    border: 1px solid #444;
+    background: #0a0a0a;
+    display: block;
+    margin: 10px auto;
+}
+#errorGraph {
+    border: 1px solid #444;
+    background: #0a0a0a;
+    display: block;
+    margin: 0 auto;
+}
+.error-graph-container {
+    margin: 10px 0;
+}
+.error-legend {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin: 5px 0 10px;
+}
+.controls {
+    max-width: 800px;
+    margin: 0 auto 8px;
+    padding: 12px;
+    background: #2a2a2a;
+    border-radius: 8px;
+}
+.system-matrices {
+    max-width: 1200px;
+    margin: 0 auto 10px;
+    padding: 15px;
+    background: #2a2a2a;
+    border-radius: 8px;
+}
+.state-panel {
+    width: 350px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Matrix Display Styles */
+.matrix-container {
+    display: inline-block;
+    position: relative;
+    margin: 10px;
+    font-family: 'Courier New', monospace;
+}
+
+.matrix-brackets {
+    position: relative;
+    display: inline-block;
+}
+
+.matrix-brackets::before,
+.matrix-brackets::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    border: 2px solid #4af;
+    border-left: none;
+    border-right: none;
+}
+
+.matrix-brackets::before {
+    left: -10px;
+    border-left: 2px solid #4af;
+}
+
+.matrix-brackets::after {
+    right: -10px;
+    border-right: 2px solid #4af;
+}
+
+.matrix-grid {
+    display: grid;
+    gap: 6px 10px;
+    padding: 8px 15px;
+    align-items: center;
+    justify-items: center;
+}
+
+.matrix-2x2 { grid-template-columns: repeat(2, 1fr); }
+.matrix-2x6 { grid-template-columns: repeat(6, 1fr); }
+.matrix-6x2 { grid-template-columns: repeat(2, 1fr); }
+.matrix-6x6 { grid-template-columns: repeat(6, 1fr); }
+
+.matrix-cell {
+    font-size: 10px;
+    color: #0ff;
+    text-align: center;
+    min-width: 42px;
+    white-space: nowrap;
+}
+
+.matrix-cell.inactive {
+    color: #666;
+}
+
+.matrix-title {
+    color: #4af;
+    font-size: 13px;
+    margin-bottom: 5px;
+    text-align: center;
+    font-family: Arial, sans-serif;
+}
+
+.matrices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 25px;
+    margin-top: 15px;
+}
+
+.matrix-display {
+    text-align: center;
+    background: #1a1a1a;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #333;
+}
+
+h2[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a1a;
+    border: 1px solid #4af;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    width: 280px;
+    z-index: 100;
+    pointer-events: none;
+    margin-top: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    font-weight: normal;
+    font-family: Arial, sans-serif;
+}
+h2[data-tooltip] {
+    position: relative;
+}
+.state-panel h2:hover::after {
+    content: "The Kalman filter waits to gather a few measurements, then initializes its state with data-derived position/velocity/acceleration. Until then it does not predict.";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a1a;
+    border: 1px solid #4af;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    width: 280px;
+    z-index: 100;
+    pointer-events: none;
+    margin-top: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    font-weight: normal;
+    font-family: Arial, sans-serif;
+}
+.state-section {
+    margin-bottom: 20px;
+}
+.state-section h3 {
+    color: #4af;
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    cursor: help;
+    position: relative;
+}
+.state-section h3:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: #1a1a1a;
+    border: 1px solid #4af;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    width: 280px;
+    z-index: 100;
+    pointer-events: none;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    font-weight: normal;
+}
+.state-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+}
+.state-label {
+    color: #aaa;
+    position: relative;
+    cursor: help;
+}
+.state-label:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: #1a1a1a;
+    border: 1px solid #4af;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    width: 250px;
+    z-index: 100;
+    pointer-events: none;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.state-value {
+    color: #0ff;
+    text-align: right;
+}
+.state-value.inactive {
+    color: #666;
+}
+.slider-container label {
+    cursor: help;
+    position: relative;
+}
+.slider-container label:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: #1a1a1a;
+    border: 1px solid #4af;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    width: 300px;
+    z-index: 100;
+    pointer-events: none;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.measurement-indicator {
+    padding: 5px;
+    margin: 10px 0;
+    background: #3a2a4a;
+    border-radius: 4px;
+    text-align: center;
+    color: #f0f;
+}
+.no-measurement {
+    background: #2a3a3a;
+    color: #888;
+}
+.bootstrapping {
+    background: #3a3a2a;
+    color: #ffea70;
+}
+.slider-container {
+    margin: 5px 0;
+}
+label {
+    display: inline-block;
+    width: 180px;
+    font-size: 12px;
+}
+input[type="range"] {
+    width: 250px;
+    vertical-align: middle;
+}
+.value {
+    display: inline-block;
+    width: 50px;
+    text-align: right;
+    color: #4af;
+    font-size: 12px;
+}
+.legend {
+    margin: 8px auto 8px;
+    max-width: 1400px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+.legend-color {
+    width: 16px;
+    height: 3px;
+}
+button {
+    padding: 6px 12px;
+    margin: 3px;
+    background: #4af;
+    border: none;
+    border-radius: 4px;
+    color: #000;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 12px;
+}
+button:hover {
+    background: #6cf;
+}
+.toggle-section {
+    color: #4af;
+    cursor: pointer;
+    padding: 10px;
+    background: #333;
+    border-radius: 4px;
+    text-align: center;
+    margin: 15px 0;
+    user-select: none;
+}
+.toggle-section:hover {
+    background: #444;
+}
+.matrices-section {
+    display: none;
+    margin-top: 15px;
+}
+.matrices-section.visible {
+    display: block;
+}
+.equation-section {
+    margin: 15px 0;
+    padding: 10px;
+    background: #1a1a1a;
+    border-radius: 4px;
+    border-left: 3px solid #4af;
+}
+.eq-label {
+    color: #4af;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+.equation-line {
+    font-family: 'Courier New', monospace;
+    color: #0ff;
+    margin: 4px 0;
+    font-size: 12px;
+}
