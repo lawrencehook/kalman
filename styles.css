@@ -57,8 +57,7 @@ body {
     padding: 15px;
     font-family: 'Courier New', monospace;
     font-size: 12px;
-    max-height: 90vh;
-    overflow-y: auto;
+    height: fit-content;
 }
 
 /* Matrix Display Styles */
