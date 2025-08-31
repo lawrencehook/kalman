@@ -8,6 +8,7 @@ class FilterUIManager {
         this.currentFilterConfig = null;
         this.statePanelContainer = null;
         this.systemMatricesContainer = null;
+        this.equationsContainer = null;
     }
 
     /**
@@ -17,6 +18,7 @@ class FilterUIManager {
         this.statePanelContainer = document.querySelector('.state-panel');
         this.systemMatricesContainer = document.querySelector('.system-matrices') || 
             this.createSystemMatricesContainer();
+        this.equationsContainer = document.querySelector('.filter-equations');
     }
 
     /**
@@ -37,6 +39,7 @@ class FilterUIManager {
         // Generate and inject the UI
         this.generateStatePanel(config);
         this.generateSystemMatricesSection(config);
+        this.generateEquationsSection(config);
     }
 
     /**
@@ -104,7 +107,7 @@ class FilterUIManager {
         const systemMatricesHtml = EquationRenderer.createSystemMatricesSection({
             title: config.systemMatrices.title,
             matrices: config.systemMatrices.matrices,
-            equations: config.equations
+            equations: null // Equations are now rendered separately
         });
 
         this.systemMatricesContainer.outerHTML = systemMatricesHtml;
@@ -116,6 +119,17 @@ class FilterUIManager {
         config.systemMatrices.matrices.forEach(matrix => {
             MatrixRenderer.ensureMatrixClass(...matrix.size);
         });
+    }
+
+    /**
+     * Generate the equations section HTML
+     * @param {Object} config - Filter UI configuration
+     */
+    generateEquationsSection(config) {
+        if (!this.equationsContainer || !config.equations) return;
+
+        const equationsHtml = EquationRenderer.createEquationsDisplay(config.equations);
+        this.equationsContainer.innerHTML = equationsHtml;
     }
 
     /**
