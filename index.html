@@ -11,9 +11,9 @@
     <div class="main-container">
         <!-- Controls Panel - Left Side -->
         <div class="controls">
-            <div class="slider-container">
+            <div class="dropdown-container">
                 <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
-                <select id="trajectorySelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                <select id="trajectorySelect">
                     <option value="constantacceleration">Constant Acceleration Line</option>
                     <option value="constantvelocity">Constant Velocity Line</option>
                     <option value="sinewave">Sine Wave</option>
@@ -24,9 +24,9 @@
                 </select>
             </div>
 
-            <div class="slider-container">
+            <div class="dropdown-container">
                 <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
-                <select id="filterSelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                <select id="filterSelect">
                     <option value="kf" selected>Kalman (CA 6-state)</option>
                     <option value="imm">IMM (2-model: smooth ↔ maneuver)</option>
                 </select>
