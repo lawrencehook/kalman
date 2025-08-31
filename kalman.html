@@ -27,6 +27,21 @@
             display: block;
             margin: 20px auto;
         }
+        #errorGraph {
+            border: 1px solid #444;
+            background: #0a0a0a;
+            display: block;
+            margin: 0 auto;
+        }
+        .error-graph-container {
+            margin: 20px 0;
+        }
+        .error-legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 10px 0 20px;
+        }
         .controls {
             max-width: 800px;
             margin: 0 auto 20px;
@@ -391,6 +406,26 @@
         <div class="viz-container">
             <canvas id="canvas" width="800" height="600"></canvas>
 
+            <!-- Error Graph -->
+            <div class="error-graph-container">
+                <h3 style="text-align: center; color: #4af; margin: 20px 0 10px 0;">Position Error vs 95% Confidence Bound</h3>
+                <canvas id="errorGraph" width="800" height="200"></canvas>
+                <div class="error-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f44;"></div>
+                        <span>Actual Error</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fa4;"></div>
+                        <span>95% Confidence Bound</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4af; width: 2px; height: 20px;"></div>
+                        <span>Current Time</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="controls">
                 <div class="slider-container">
                     <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
@@ -448,7 +483,7 @@
 
                 <!-- Fixed, whole-duration metric -->
                 <div class="slider-container">
-                    <label data-tooltip="Coverage over the entire simulated duration: fraction of timestamps where ground truth is inside the estimate’s 95% error ellipse (Mahalanobis distance² ≤ 5.991).">
+                    <label data-tooltip="Coverage over the entire simulated duration: fraction of timestamps where ground truth is inside the estimate's 95% error ellipse (Mahalanobis distance² ≤ 5.991).">
                         Total Ellipse Coverage (95%):
                     </label>
                     <span class="value" id="total-coverage-95">--</span>
@@ -520,7 +555,7 @@
                     <span class="state-value" id="std-y">--</span>
                 </div>
                 <div class="state-row">
-                    <span class="state-label" data-tooltip="Share of time (up to current t) that the true position lay inside the filter’s 95% error ellipse (Mahalanobis distance² ≤ χ²₂,0.95 ≈ 5.991).">
+                    <span class="state-label" data-tooltip="Share of time (up to current t) that the true position lay inside the filter's 95% error ellipse (Mahalanobis distance² ≤ χ²₂,0.95 ≈ 5.991).">
                         Ellipse Coverage (95%):
                     </span>
                     <span class="state-value" id="coverage-95">--</span>
@@ -952,7 +987,7 @@
         }
 
         /**
-         * Const-Accel Bezier (Quadratic) — zero jerk (C^2)
+         * Const-Accel Bezier (Quadratic) – zero jerk (C^2)
          * p(τ) = (1-τ)^2 P0 + 2(1-τ)τ C + τ^2 P1, τ = t/T
          * Quadratic in time ⇒ constant acceleration.
          */
@@ -977,7 +1012,7 @@
         }
 
         /**
-         * Const-Accel Diagonal — zero jerk
+         * Const-Accel Diagonal – zero jerk
          * Start at (-s,-s), end at (+s,+s) with v0=0, a chosen so x(T)=xf, y(T)=yf.
          * x(t) = x0 + 0.5 a_x t^2,  a_x = 2(xf-x0)/T^2  (same for y).
          */
@@ -1081,7 +1116,7 @@
         /**
          * Random Fourier (Smooth) (C∞)
          * Low-frequency band-limited sum of sin/cos => smooth wandering path.
-         * Real-world: “meandering animal/boat” with bounded speed/acc.
+         * Real-world: "meandering animal/boat" with bounded speed/acc.
          */
         class RandomFourierSmoothGenerator extends TrajectoryGenerator {
             constructor(config = {}) {
@@ -1091,7 +1126,7 @@
                 this.bx = this.freqs.map(() => (Math.random()*2-1));
                 this.ay = this.freqs.map(() => (Math.random()*2-1));
                 this.by = this.freqs.map(() => (Math.random()*2-1));
-                // normalize amplitude so we don’t exceed scale
+                // normalize amplitude so we don't exceed scale
                 const norm = Math.sqrt(
                     [...this.ax, ...this.bx, ...this.ay, ...this.by]
                         .reduce((s,v)=>s+v*v,0) / (4*this.freqs.length)
@@ -1400,7 +1435,7 @@
                     const age = currentTime - t;
                     const a = this.fadeAlphaFromAge(age);
 
-                    // Historical ellipses (faded) — test inclusion
+                    // Historical ellipses (faded) – test inclusion
                     let inside = true;
                     if (est && cov && groundTruth[i]) {
                         const dx = groundTruth[i][0] - est[0];
@@ -1466,13 +1501,13 @@
                                        dy*(Sinv[1][0]*dx + Sinv[1][1]*dy);
                             inside = (d2 <= 5.991); // 95% chi-square cutoff
                         }
-    
+
                         this.ctx.globalAlpha = 0.3;
                         this.ctx.strokeStyle = inside ? 'rgba(0,255,255,1)' : 'rgba(255,80,80,1)';
                         this.ctx.lineWidth = 2;
                         this.drawErrorEllipse(pos[0], pos[1], cov);
                         this.ctx.stroke();
-    
+
                         this.ctx.globalAlpha = 0.05;
                         this.ctx.fillStyle = inside ? 'rgba(0,255,255,1)' : 'rgba(255,80,80,1)';
                         this.ctx.fill();
@@ -1484,6 +1519,194 @@
                         this.ctx.fill();
                     }
                 }
+                this.ctx.restore();
+            }
+        }
+
+        // ================================
+        // ERROR GRAPH VISUALIZATION ENGINE
+        // ================================
+
+        class ErrorGraphVisualization {
+            constructor(canvasId, config = {}) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.config = {
+                    marginLeft: 60,
+                    marginRight: 30,
+                    marginTop: 30,
+                    marginBottom: 40,
+                    ...config
+                };
+            }
+
+            draw(data) {
+                const { currentTime, maxTime, dt, errorHistory, confidenceHistory } = data;
+
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.save();
+
+                const plotWidth = this.canvas.width - this.config.marginLeft - this.config.marginRight;
+                const plotHeight = this.canvas.height - this.config.marginTop - this.config.marginBottom;
+                const plotLeft = this.config.marginLeft;
+                const plotTop = this.config.marginTop;
+
+                // Find max value for Y axis scaling
+                let maxError = 0;
+                errorHistory.forEach(err => {
+                    if (err !== null && Number.isFinite(err)) {
+                        maxError = Math.max(maxError, err);
+                    }
+                });
+                confidenceHistory.forEach(conf => {
+                    if (conf !== null && Number.isFinite(conf)) {
+                        maxError = Math.max(maxError, conf);
+                    }
+                });
+                maxError = Math.max(maxError, 50); // Minimum scale
+
+                // Draw axes
+                this.ctx.strokeStyle = '#666';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                // Y axis
+                this.ctx.moveTo(plotLeft, plotTop);
+                this.ctx.lineTo(plotLeft, plotTop + plotHeight);
+                // X axis
+                this.ctx.lineTo(plotLeft + plotWidth, plotTop + plotHeight);
+                this.ctx.stroke();
+
+                // Y axis labels
+                this.ctx.fillStyle = '#aaa';
+                this.ctx.font = '12px Arial';
+                this.ctx.textAlign = 'right';
+                this.ctx.textBaseline = 'middle';
+                const yTicks = 5;
+                for (let i = 0; i <= yTicks; i++) {
+                    const value = (maxError * i / yTicks);
+                    const y = plotTop + plotHeight - (i / yTicks) * plotHeight;
+                    this.ctx.fillText(value.toFixed(0), plotLeft - 5, y);
+
+                    // Grid lines
+                    if (i > 0) {
+                        this.ctx.strokeStyle = '#333';
+                        this.ctx.lineWidth = 0.5;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(plotLeft, y);
+                        this.ctx.lineTo(plotLeft + plotWidth, y);
+                        this.ctx.stroke();
+                    }
+                }
+
+                // X axis labels
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'top';
+                const xTicks = 6;
+                for (let i = 0; i <= xTicks; i++) {
+                    const value = (maxTime * i / xTicks);
+                    const x = plotLeft + (i / xTicks) * plotWidth;
+                    this.ctx.fillText(value.toFixed(1) + 's', x, plotTop + plotHeight + 5);
+
+                    // Grid lines
+                    if (i > 0) {
+                        this.ctx.strokeStyle = '#333';
+                        this.ctx.lineWidth = 0.5;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(x, plotTop);
+                        this.ctx.lineTo(x, plotTop + plotHeight);
+                        this.ctx.stroke();
+                    }
+                }
+
+                // Axis labels
+                this.ctx.fillStyle = '#4af';
+                this.ctx.font = '14px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('Time (seconds)', plotLeft + plotWidth / 2, this.canvas.height - 5);
+
+                this.ctx.save();
+                this.ctx.translate(15, plotTop + plotHeight / 2);
+                this.ctx.rotate(-Math.PI / 2);
+                this.ctx.fillText('Position Error (pixels)', 0, 0);
+                this.ctx.restore();
+
+                // Draw zones where actual error exceeds confidence bound
+                this.ctx.fillStyle = 'rgba(255, 100, 100, 0.2)'; // Light red background
+                for (let i = 0; i < errorHistory.length - 1; i++) {
+                    const err = errorHistory[i];
+                    const conf = confidenceHistory[i];
+                    const nextErr = errorHistory[i + 1];
+                    const nextConf = confidenceHistory[i + 1];
+                    
+                    if (err !== null && conf !== null && err > conf) {
+                        const t1 = i * dt;
+                        const t2 = (i + 1) * dt;
+                        const x1 = plotLeft + (t1 / maxTime) * plotWidth;
+                        const x2 = plotLeft + (t2 / maxTime) * plotWidth;
+                        
+                        this.ctx.fillRect(x1, plotTop, x2 - x1, plotHeight);
+                    }
+                }
+
+                // Helper function to convert data coordinates to canvas coordinates
+                const dataToCanvas = (t, error) => {
+                    const x = plotLeft + (t / maxTime) * plotWidth;
+                    const y = plotTop + plotHeight - (error / maxError) * plotHeight;
+                    return [x, y];
+                };
+
+                // Draw confidence bound (95%) first (so it appears behind the error line)
+                this.ctx.strokeStyle = '#fa4';
+                this.ctx.lineWidth = 2;
+                this.ctx.globalAlpha = 0.8;
+                this.ctx.beginPath();
+                let firstConfPoint = true;
+                for (let i = 0; i < confidenceHistory.length; i++) {
+                    const conf = confidenceHistory[i];
+                    if (conf !== null && Number.isFinite(conf)) {
+                        const t = i * dt;
+                        const [x, y] = dataToCanvas(t, conf);
+                        if (firstConfPoint) {
+                            this.ctx.moveTo(x, y);
+                            firstConfPoint = false;
+                        } else {
+                            this.ctx.lineTo(x, y);
+                        }
+                    }
+                }
+                this.ctx.stroke();
+
+                // Draw actual error line
+                this.ctx.strokeStyle = '#f44';
+                this.ctx.lineWidth = 2;
+                this.ctx.globalAlpha = 1.0;
+                this.ctx.beginPath();
+                let firstErrorPoint = true;
+                for (let i = 0; i < errorHistory.length; i++) {
+                    const err = errorHistory[i];
+                    if (err !== null && Number.isFinite(err)) {
+                        const t = i * dt;
+                        const [x, y] = dataToCanvas(t, err);
+                        if (firstErrorPoint) {
+                            this.ctx.moveTo(x, y);
+                            firstErrorPoint = false;
+                        } else {
+                            this.ctx.lineTo(x, y);
+                        }
+                    }
+                }
+                this.ctx.stroke();
+
+                // Draw current time indicator
+                const currentTimeX = plotLeft + (currentTime / maxTime) * plotWidth;
+                this.ctx.strokeStyle = '#4af';
+                this.ctx.lineWidth = 2;
+                this.ctx.globalAlpha = 0.8;
+                this.ctx.beginPath();
+                this.ctx.moveTo(currentTimeX, plotTop);
+                this.ctx.lineTo(currentTimeX, plotTop + plotHeight);
+                this.ctx.stroke();
+
                 this.ctx.restore();
             }
         }
@@ -1701,7 +1924,7 @@
                     maxTime: 30,
                     dt: 0.05,
                     measurementRate: 0.1,
-                    bootstrapMeasurements: 3,   // <— how many measurements to wait
+                    bootstrapMeasurements: 3,   // <– how many measurements to wait
                     ...config
                 };
 
@@ -1714,6 +1937,7 @@
                 });
 
                 this.visualization = new VisualizationEngine('canvas');
+                this.errorGraph = new ErrorGraphVisualization('errorGraph');
                 this.stateDisplay = new StateDisplayEngine();
 
                 this.currentTime = 0;
@@ -1725,6 +1949,8 @@
                 this.estimates = [];
                 this.covariances = [];
                 this.filterStates = [];
+                this.errorHistory = [];
+                this.confidenceHistory = [];
 
                 this.generateData();
             }
@@ -1810,6 +2036,8 @@
                 this.estimates = [];
                 this.covariances = [];
                 this.filterStates = [];
+                this.errorHistory = [];
+                this.confidenceHistory = [];
 
                 this.filter = this.createFilter();
                 const measurementNoise = this.getMeasurementNoise();
@@ -1861,6 +2089,25 @@
                         this.estimates.push(position);
                         this.covariances.push(covPos);
 
+                        // Calculate position error and 95% confidence bound
+                        if (position && covPos) {
+                            // Position error (Euclidean distance)
+                            const error = Math.sqrt(Math.pow(truth[0] - position[0], 2) + Math.pow(truth[1] - position[1], 2));
+                            this.errorHistory.push(error);
+
+                            // 95% confidence bound (major axis of confidence ellipse)
+                            const a = covPos[0][0], b = covPos[0][1], c = covPos[1][1];
+                            const trace = a + c;
+                            const det = a * c - b * b;
+                            const disc = Math.sqrt(Math.max(0, trace * trace - 4 * det));
+                            const maxEigenvalue = (trace + disc) / 2;
+                            const confidence95 = Math.sqrt(Math.max(0, maxEigenvalue * 5.991)); // chi2(2,0.95) = 5.991
+                            this.confidenceHistory.push(confidence95);
+                        } else {
+                            this.errorHistory.push(null);
+                            this.confidenceHistory.push(null);
+                        }
+
                         // Update coverage only after filter is initialized
                         // (inside 95% ellipse => r^T S^{-1} r <= 5.991)
                         if (this.filter.initialized && position && covPos) {
@@ -1877,6 +2124,8 @@
                         // Not initialized yet: no estimate/covariance
                         this.estimates.push(null);
                         this.covariances.push(null);
+                        this.errorHistory.push(null);
+                        this.confidenceHistory.push(null);
                     }
 
                     // Store state snapshot for the panel
@@ -1957,6 +2206,14 @@
                     measurements: this.measurements,
                     estimates: this.estimates,
                     covariances: this.covariances
+                });
+
+                this.errorGraph.draw({
+                    currentTime: this.currentTime,
+                    maxTime: this.config.maxTime,
+                    dt: this.config.dt,
+                    errorHistory: this.errorHistory,
+                    confidenceHistory: this.confidenceHistory
                 });
 
                 const timeIndex = Math.floor(this.currentTime / this.config.dt);
