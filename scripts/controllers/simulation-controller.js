@@ -19,7 +19,7 @@ class SimulationController {
         this.filter = this.createFilter();
         this.visualization = new VisualizationEngine('canvas');
         this.errorGraph = new ErrorGraphVisualization('errorGraph');
-        this.stateDisplay = new StateDisplayEngine();
+        this.filterUIManager = config.filterUIManager;
 
         this.currentTime = 0;
         this.playing = false;
@@ -327,13 +327,54 @@ class SimulationController {
         });
 
         const timeIndex = Math.floor(this.currentTime / this.config.dt);
-        if (timeIndex < this.filterStates.length) {
-            this.stateDisplay.updateDisplay(
-                this.filterStates[timeIndex],
-                this.groundTruth[timeIndex],
-                this.filter.getSystemMatrices(),
-                this.showMatrices
-            );
+        if (timeIndex < this.filterStates.length && this.filterUIManager) {
+            const filterState = this.filterStates[timeIndex];
+            const groundTruth = this.groundTruth[timeIndex];
+            
+            // Prepare filter state for the new API
+            const systemMatrices = this.filter.getSystemMatrices();
+            // Add P (full covariance) and S (innovation covariance) matrices
+            if (filterState.fullCovariance) {
+                systemMatrices.P = filterState.fullCovariance;
+            }
+            if (filterState.innovationCovariance) {
+                systemMatrices.S = filterState.innovationCovariance;
+            }
+            
+            const formattedFilterState = {
+                state: filterState.state ? filterState.state.map(val => [val]) : null, // Convert to column vector format
+                positionCovariance: filterState.covariance,
+                innovation: filterState.innovation ? filterState.innovation.map(val => [val]) : null, // Convert to column vector format  
+                kalmanGain: filterState.kalmanGain,
+                systemMatrices: systemMatrices
+            };
+            
+            // Calculate error metrics
+            let errorMetrics = {};
+            if (filterState.state && groundTruth) {
+                const posError = Math.sqrt(Math.pow(filterState.state[0] - groundTruth[0], 2) + Math.pow(filterState.state[1] - groundTruth[1], 2));
+                errorMetrics['pos-error'] = posError;
+                
+                if (filterState.covariance) {
+                    errorMetrics['std-x'] = Math.sqrt(filterState.covariance[0][0]);
+                    errorMetrics['std-y'] = Math.sqrt(filterState.covariance[1][1]);
+                }
+                
+                if (typeof filterState.coveragePct === 'number') {
+                    errorMetrics['coverage-95'] = (filterState.coveragePct * 100).toFixed(1) + '%';
+                }
+            }
+            
+            this.filterUIManager.updateDisplay(formattedFilterState, { errorMetrics });
+            
+            // Update measurement status
+            if (!filterState.initialized) {
+                this.filterUIManager.updateMeasurementStatus(`Bootstrapping (${filterState.bootstrapCount}/${filterState.bootstrapNeeded})`, 'measurement-indicator bootstrapping');
+            } else if (filterState.hadMeasurement) {
+                this.filterUIManager.updateMeasurementStatus('Measurement Update', 'measurement-indicator');
+            } else {
+                this.filterUIManager.updateMeasurementStatus('Prediction Only', 'measurement-indicator no-measurement');
+            }
         }
     }
 

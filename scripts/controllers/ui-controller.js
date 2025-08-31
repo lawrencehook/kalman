@@ -50,14 +50,6 @@ class UIController {
         document.getElementById('playBtn').addEventListener('click', () => this.sim.togglePlay());
         document.getElementById('stepBtn').addEventListener('click', () => this.sim.step());
         document.getElementById('resetBtn').addEventListener('click', () => this.sim.reset());
-
-        document.getElementById('toggleMatrices').addEventListener('click', () => {
-            const section = document.getElementById('matricesSection');
-            const toggle = document.getElementById('toggleMatrices');
-            const isVisible = section.classList.toggle('visible');
-            toggle.textContent = isVisible ? 'Hide System Matrices & Equations ▲' : 'Show System Matrices & Equations ▼';
-            this.sim.setMatrixVisibility(isVisible);
-        });
     }
 
     updateTimeDisplay() {
