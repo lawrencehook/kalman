@@ -7,12 +7,13 @@ body {
 .main-container {
     display: flex;
     gap: 20px;
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
     align-items: flex-start;
 }
 .viz-container {
     flex: 1;
+    min-width: 650px;
 }
 #canvas {
     border: 1px solid #444;
@@ -36,11 +37,11 @@ body {
     margin: 5px 0 10px;
 }
 .controls {
-    max-width: 800px;
-    margin: 0 auto 8px;
-    padding: 12px;
+    width: 280px;
+    padding: 15px;
     background: #2a2a2a;
     border-radius: 8px;
+    height: fit-content;
 }
 .system-matrices {
     max-width: 1200px;
@@ -287,15 +288,16 @@ h2[data-tooltip] {
     color: #ffea70;
 }
 .slider-container {
-    margin: 5px 0;
+    margin: 8px 0;
 }
 label {
-    display: inline-block;
-    width: 180px;
+    display: block;
+    width: 100%;
     font-size: 12px;
+    margin-bottom: 4px;
 }
 input[type="range"] {
-    width: 250px;
+    width: 180px;
     vertical-align: middle;
 }
 .value {
@@ -304,6 +306,7 @@ input[type="range"] {
     text-align: right;
     color: #4af;
     font-size: 12px;
+    margin-left: 8px;
 }
 .legend {
     margin: 8px auto 8px;

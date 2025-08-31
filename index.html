@@ -29,6 +29,69 @@
     </div>
 
     <div class="main-container">
+        <!-- Controls Panel - Left Side -->
+        <div class="controls">
+            <div class="slider-container">
+                <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
+                <select id="trajectorySelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                    <option value="constantacceleration">Constant Acceleration Line</option>
+                    <option value="constantvelocity">Constant Velocity Line</option>
+                    <option value="sinewave">Sine Wave</option>
+                    <option value="parabolic">Parabolic Arc</option>
+                    <option value="circle" selected>Circle</option>
+                    <option value="infinity">Infinity (∞)</option>
+                    <option value="star">Star</option>
+                </select>
+            </div>
+
+            <div class="slider-container">
+                <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
+                <select id="filterSelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                    <option value="kf" selected>Kalman (CA 6-state)</option>
+                    <option value="imm">IMM (2-model: smooth ↔ maneuver)</option>
+                </select>
+            </div>
+
+            <div class="slider-container">
+                <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurement frequency is configurable via the Measurement Rate Ratio slider.">Time:</label>
+                <input type="range" id="timeSlider" min="0" max="100" value="0" step="1">
+                <span class="value" id="timeValue">0.00s</span>
+            </div>
+
+            <div class="slider-container">
+                <label data-tooltip="Standard deviation of noise added to position measurements. Higher values make measurements less reliable, causing the filter to trust its model more.">Measurement Noise (σ):</label>
+                <input type="range" id="measurementNoise" min="1" max="50" value="5" step="1">
+                <span class="value" id="measurementNoiseValue">15</span>
+            </div>
+
+            <div class="slider-container">
+                <label data-tooltip="Uncertainty in the motion model. Higher values mean the filter expects more random accelerations, making it trust measurements more and predictions less.">Process Noise:</label>
+                <input type="range" id="processNoise" min="0.1" max="5" value="1" step="0.1">
+                <span class="value" id="processNoiseValue">1.0</span>
+            </div>
+
+            <div class="slider-container">
+                <label data-tooltip="How often measurements arrive relative to predictions. Higher values = more frequent measurements. Currently prediction rate is 20Hz (every 0.05s).">Measurement Rate Ratio:</label>
+                <input type="range" id="measurementRatio" min="0.5" max="8" value="2" step="0.5">
+                <span class="value" id="measurementRatioValue">2.0x</span>
+            </div>
+
+            <div style="text-align: center; margin-top: 10px;">
+                <button id="playBtn">Play/Pause</button>
+                <button id="stepBtn">Step</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+
+            <!-- Fixed, whole-duration metric -->
+            <div class="slider-container">
+                <label data-tooltip="Coverage over the entire simulated duration: fraction of timestamps where ground truth is inside the estimate's 95% error ellipse (Mahalanobis distance² ≤ 5.991).">
+                    Total Ellipse Coverage (95%):
+                </label>
+                <span class="value" id="total-coverage-95">--</span>
+            </div>
+        </div>
+
+        <!-- Visualization Container - Center -->
         <div class="viz-container">
             <canvas id="canvas" width="650" height="450"></canvas>
 
@@ -49,67 +112,6 @@
                         <div class="legend-color" style="background: #4af; width: 2px; height: 20px;"></div>
                         <span>Current Time</span>
                     </div>
-                </div>
-            </div>
-
-            <div class="controls">
-                <div class="slider-container">
-                    <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
-                    <select id="trajectorySelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
-                        <option value="constantacceleration">Constant Acceleration Line</option>
-                        <option value="constantvelocity">Constant Velocity Line</option>
-                        <option value="sinewave">Sine Wave</option>
-                        <option value="parabolic">Parabolic Arc</option>
-                        <option value="circle" selected>Circle</option>
-                        <option value="infinity">Infinity (∞)</option>
-                        <option value="star">Star</option>
-                    </select>
-                </div>
-
-                <div class="slider-container">
-                    <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
-                    <select id="filterSelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
-                        <option value="kf" selected>Kalman (CA 6-state)</option>
-                        <option value="imm">IMM (2-model: smooth ↔ maneuver)</option>
-                    </select>
-                </div>
-
-                <div class="slider-container">
-                    <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurement frequency is configurable via the Measurement Rate Ratio slider.">Time:</label>
-                    <input type="range" id="timeSlider" min="0" max="100" value="0" step="1">
-                    <span class="value" id="timeValue">0.00s</span>
-                </div>
-
-                <div class="slider-container">
-                    <label data-tooltip="Standard deviation of noise added to position measurements. Higher values make measurements less reliable, causing the filter to trust its model more.">Measurement Noise (σ):</label>
-                    <input type="range" id="measurementNoise" min="1" max="50" value="5" step="1">
-                    <span class="value" id="measurementNoiseValue">15</span>
-                </div>
-
-                <div class="slider-container">
-                    <label data-tooltip="Uncertainty in the motion model. Higher values mean the filter expects more random accelerations, making it trust measurements more and predictions less.">Process Noise:</label>
-                    <input type="range" id="processNoise" min="0.1" max="5" value="1" step="0.1">
-                    <span class="value" id="processNoiseValue">1.0</span>
-                </div>
-
-                <div class="slider-container">
-                    <label data-tooltip="How often measurements arrive relative to predictions. Higher values = more frequent measurements. Currently prediction rate is 20Hz (every 0.05s).">Measurement Rate Ratio:</label>
-                    <input type="range" id="measurementRatio" min="0.5" max="8" value="2" step="0.5">
-                    <span class="value" id="measurementRatioValue">2.0x</span>
-                </div>
-
-                <div style="text-align: center; margin-top: 10px;">
-                    <button id="playBtn">Play/Pause</button>
-                    <button id="stepBtn">Step</button>
-                    <button id="resetBtn">Reset</button>
-                </div>
-
-                <!-- Fixed, whole-duration metric -->
-                <div class="slider-container">
-                    <label data-tooltip="Coverage over the entire simulated duration: fraction of timestamps where ground truth is inside the estimate's 95% error ellipse (Mahalanobis distance² ≤ 5.991).">
-                        Total Ellipse Coverage (95%):
-                    </label>
-                    <span class="value" id="total-coverage-95">--</span>
                 </div>
             </div>
         </div>
