@@ -311,6 +311,32 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Core utilities (no dependencies) -->
+    <script src="scripts/utils/matrix-utils.js"></script>
+    <script src="scripts/utils/noise-utils.js"></script>
+
+    <!-- Trajectory generators -->
+    <script src="scripts/trajectory/trajectory-base.js"></script>
+    <script src="scripts/trajectory/geometric-generators.js"></script>
+    <script src="scripts/trajectory/physics-generators.js"></script>
+    <script src="scripts/trajectory/mathematical-generators.js"></script>
+    <script src="scripts/trajectory/random-generators.js"></script>
+
+    <!-- Filter implementations -->
+    <script src="scripts/filters/filter-base.js"></script>
+    <script src="scripts/filters/kalman-filter-2d.js"></script>
+    <script src="scripts/filters/imm-filter.js"></script>
+
+    <!-- Visualization components -->
+    <script src="scripts/visualization/visualization-engine.js"></script>
+    <script src="scripts/visualization/error-graph.js"></script>
+    <script src="scripts/visualization/state-display.js"></script>
+
+    <!-- Controllers -->
+    <script src="scripts/controllers/simulation-controller.js"></script>
+    <script src="scripts/controllers/ui-controller.js"></script>
+
+    <!-- Application startup -->
+    <script src="scripts/app.js"></script>
 </body>
 </html>
