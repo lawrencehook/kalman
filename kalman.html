@@ -25,7 +25,7 @@
             border: 1px solid #444;
             background: #0a0a0a;
             display: block;
-            margin: 20px auto;
+            margin: 10px auto;
         }
         #errorGraph {
             border: 1px solid #444;
@@ -34,25 +34,25 @@
             margin: 0 auto;
         }
         .error-graph-container {
-            margin: 20px 0;
+            margin: 10px 0;
         }
         .error-legend {
             display: flex;
             justify-content: center;
             gap: 30px;
-            margin: 10px 0 20px;
+            margin: 5px 0 10px;
         }
         .controls {
             max-width: 800px;
-            margin: 0 auto 20px;
-            padding: 20px;
+            margin: 0 auto 8px;
+            padding: 12px;
             background: #2a2a2a;
             border-radius: 8px;
         }
         .system-matrices {
             max-width: 1200px;
-            margin: 0 auto 20px;
-            padding: 20px;
+            margin: 0 auto 10px;
+            padding: 15px;
             background: #2a2a2a;
             border-radius: 8px;
         }
@@ -60,7 +60,7 @@
             width: 350px;
             background: #2a2a2a;
             border-radius: 8px;
-            padding: 20px;
+            padding: 15px;
             font-family: 'Courier New', monospace;
             font-size: 12px;
             max-height: 90vh;
@@ -294,48 +294,51 @@
             color: #ffea70;
         }
         .slider-container {
-            margin: 15px 0;
+            margin: 5px 0;
         }
         label {
             display: inline-block;
-            width: 200px;
-            font-size: 14px;
+            width: 180px;
+            font-size: 12px;
         }
         input[type="range"] {
-            width: 300px;
+            width: 250px;
             vertical-align: middle;
         }
         .value {
             display: inline-block;
-            width: 60px;
+            width: 50px;
             text-align: right;
             color: #4af;
+            font-size: 12px;
         }
         .legend {
-            margin: 20px auto 10px;
+            margin: 8px auto 8px;
             max-width: 1400px;
             display: flex;
             justify-content: center;
-            gap: 30px;
+            gap: 20px;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            font-size: 13px;
         }
         .legend-color {
-            width: 20px;
+            width: 16px;
             height: 3px;
         }
         button {
-            padding: 8px 16px;
-            margin: 5px;
+            padding: 6px 12px;
+            margin: 3px;
             background: #4af;
             border: none;
             border-radius: 4px;
             color: #000;
             cursor: pointer;
             font-weight: bold;
+            font-size: 12px;
         }
         button:hover {
             background: #6cf;
@@ -381,7 +384,7 @@
     </style>
 </head>
 <body>
-    <h1 style="text-align: center;">2D Kalman Filter - Multi-Shape Tracking</h1>
+    <h1 style="text-align: center; margin: 10px 0; font-size: 24px;">2D Kalman Filter - Multi-Shape Tracking</h1>
 
     <div class="legend">
         <div class="legend-item">
@@ -404,12 +407,12 @@
 
     <div class="main-container">
         <div class="viz-container">
-            <canvas id="canvas" width="800" height="600"></canvas>
+            <canvas id="canvas" width="650" height="450"></canvas>
 
             <!-- Error Graph -->
             <div class="error-graph-container">
-                <h3 style="text-align: center; color: #4af; margin: 20px 0 10px 0;">Position Error vs 95% Confidence Bound</h3>
-                <canvas id="errorGraph" width="800" height="200"></canvas>
+                <h3 style="text-align: center; color: #4af; margin: 10px 0 5px 0; font-size: 14px;">Position Error vs 95% Confidence Bound</h3>
+                <canvas id="errorGraph" width="650" height="150"></canvas>
                 <div class="error-legend">
                     <div class="legend-item">
                         <div class="legend-color" style="background: #f44;"></div>
@@ -457,17 +460,17 @@
                     </select>
                 </div>
 
-                
-<div class="slider-container">
-    <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
-    <select id="filterSelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
-        <option value="kf" selected>Kalman (CA 6-state)</option>
-        <option value="imm">IMM (2-model: smooth ↔ maneuver)</option>
-    </select>
-</div>
 
-<div class="slider-container">
-                    <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurements arrive at 10Hz (every 0.1s). The object completes multiple trajectory patterns over 30 seconds.">Time:</label>
+                <div class="slider-container">
+                    <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
+                    <select id="filterSelect" style="width: 220px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; border-radius: 4px;">
+                        <option value="kf" selected>Kalman (CA 6-state)</option>
+                        <option value="imm">IMM (2-model: smooth ↔ maneuver)</option>
+                    </select>
+                </div>
+
+                <div class="slider-container">
+                    <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurement frequency is configurable via the Measurement Rate Ratio slider.">Time:</label>
                     <input type="range" id="timeSlider" min="0" max="100" value="0" step="1">
                     <span class="value" id="timeValue">0.00s</span>
                 </div>
@@ -484,7 +487,13 @@
                     <span class="value" id="processNoiseValue">1.0</span>
                 </div>
 
-                <div style="text-align: center; margin-top: 20px;">
+                <div class="slider-container">
+                    <label data-tooltip="How often measurements arrive relative to predictions. Higher values = more frequent measurements. Currently prediction rate is 20Hz (every 0.05s).">Measurement Rate Ratio:</label>
+                    <input type="range" id="measurementRatio" min="0.5" max="8" value="2" step="0.5">
+                    <span class="value" id="measurementRatioValue">2.0x</span>
+                </div>
+
+                <div style="text-align: center; margin-top: 10px;">
                     <button id="playBtn">Play/Pause</button>
                     <button id="stepBtn">Step</button>
                     <button id="resetBtn">Reset</button>
@@ -1409,7 +1418,7 @@ class IMMFilter extends FilterBase {
     getState(){ return this.state; }
     getPosition(){ return this.state ? [this.state[0][0], this.state[1][0]] : null; }
     getPositionCovariance(){ return this.covariance ? MatrixUtils.extractSubmatrix(this.covariance,0,1,0,1) : null; }
-    getSystemMatrices(){ 
+    getSystemMatrices(){
         const jStar = this.mu[0] >= this.mu[1] ? 0 : 1;
         return this.models[jStar].getSystemMatrices();
     }
@@ -1779,13 +1788,13 @@ class IMMFilter extends FilterBase {
                     const conf = confidenceHistory[i];
                     const nextErr = errorHistory[i + 1];
                     const nextConf = confidenceHistory[i + 1];
-                    
+
                     if (err !== null && conf !== null && err > conf) {
                         const t1 = i * dt;
                         const t2 = (i + 1) * dt;
                         const x1 = plotLeft + (t1 / maxTime) * plotWidth;
                         const x2 = plotLeft + (t2 / maxTime) * plotWidth;
-                        
+
                         this.ctx.fillRect(x1, plotTop, x2 - x1, plotHeight);
                     }
                 }
@@ -2045,6 +2054,15 @@ if (filterSelect) {
                     this.sim.updateNoiseParams();
                 });
 
+                document.getElementById('measurementRatio').addEventListener('input', (e) => {
+                    const ratio = parseFloat(e.target.value);
+                    document.getElementById('measurementRatioValue').textContent = ratio.toFixed(1) + 'x';
+                    this.sim.config.measurementRatio = ratio;
+                    this.sim.updateMeasurementRate();
+                    this.sim.generateData();
+                    this.sim.draw();
+                });
+
                 document.getElementById('playBtn').addEventListener('click', () => this.sim.togglePlay());
                 document.getElementById('stepBtn').addEventListener('click', () => this.sim.step());
                 document.getElementById('resetBtn').addEventListener('click', () => this.sim.reset());
@@ -2073,10 +2091,11 @@ if (filterSelect) {
                 this.config = {
                     maxTime: 30,
                     dt: 0.05,
-                    measurementRate: 0.1,
-                    bootstrapMeasurements: 3,   // <– how many measurements to wait
+                    measurementRatio: 2.0,
+                    bootstrapMeasurements: 3,
                     ...config
                 };
+                this.updateMeasurementRate();
 
                 this.trajectoryType = 'constaccel_line';
                 this.trajectoryGenerator = this.createTrajectoryGenerator();
@@ -2101,33 +2120,33 @@ this.visualization = new VisualizationEngine('canvas');
                 this.generateData();
             }
 
-            
-createFilter() {
-    const base = {
-        dt: this.config.dt,
-        measurementNoise: this.getMeasurementNoise(),
-        processNoise: this.getProcessNoise()
-    };
-    if (this.filterType === 'imm') {
-        return new IMMFilter({
-            dt: base.dt,
-            measurementNoise: base.measurementNoise,
-            processNoiseSlow: Math.max(0.1, base.processNoise * 0.5),
-            processNoiseFast: base.processNoise * 3.0,
-            trans: [[0.94, 0.06],[0.06, 0.94]]
-        });
-    }
-    return new KalmanFilter2D(base);
-}
+
+            createFilter() {
+                const base = {
+                    dt: this.config.dt,
+                    measurementNoise: this.getMeasurementNoise(),
+                    processNoise: this.getProcessNoise()
+                };
+                if (this.filterType === 'imm') {
+                    return new IMMFilter({
+                        dt: base.dt,
+                        measurementNoise: base.measurementNoise,
+                        processNoiseSlow: Math.max(0.1, base.processNoise * 0.5),
+                        processNoiseFast: base.processNoise * 3.0,
+                        trans: [[0.94, 0.06],[0.06, 0.94]]
+                    });
+                }
+                return new KalmanFilter2D(base);
+            }
 
 
-setFilterType(kind) {
-    this.filterType = (kind === 'imm') ? 'imm' : 'kf';
-    this.filter = this.createFilter();
-    this.generateData();
-    if (this.ui) this.ui.updateTimeDisplay();
-    this.draw();
-}
+            setFilterType(kind) {
+                this.filterType = (kind === 'imm') ? 'imm' : 'kf';
+                this.filter = this.createFilter();
+                this.generateData();
+                if (this.ui) this.ui.updateTimeDisplay();
+                this.draw();
+            }
 
 
             createTrajectoryGenerator() {
@@ -2165,6 +2184,14 @@ setFilterType(kind) {
 
             getMeasurementNoise() { return parseFloat(document.getElementById('measurementNoise').value); }
             getProcessNoise() { return parseFloat(document.getElementById('processNoise').value); }
+
+            updateMeasurementRate() {
+                this.config.measurementRate = this.config.dt * this.config.measurementRatio;
+            }
+
+            getMeasurementRatio() {
+                return parseFloat(document.getElementById('measurementRatio').value);
+            }
 
             // Helper to build an initial covariance (position from R, big uncertainty elsewhere)
             buildInitialCovariance(measVar) {
@@ -2325,6 +2352,8 @@ setFilterType(kind) {
             }
 
             updateNoiseParams() {
+                this.config.measurementRatio = this.getMeasurementRatio();
+                this.updateMeasurementRate();
                 if (this.filter.updateNoise) {
                     this.filter.updateNoise(this.getMeasurementNoise(), this.getProcessNoise());
                 }
