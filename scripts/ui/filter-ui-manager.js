@@ -51,6 +51,8 @@ class FilterUIManager {
         switch (filterType) {
             case 'kalman-filter-2d':
                 return KalmanFilter2DUIConfig.getConfig();
+            case 'imm':
+                return IMMUIConfig.getConfig();
             // Future filters can be added here
             // case 'particle-filter':
             //     return ParticleFilterUIConfig.getConfig();
@@ -80,14 +82,38 @@ class FilterUIManager {
 
         // Generate sections
         const stateVectorHtml = StateRenderer.createStateVector(config.stateVector);
+        
+        // IMM-specific sections
+        let modelProbabilitiesHtml = '';
+        let activeModelHtml = '';
+        if (config.modelProbabilities) {
+            // Convert models to metrics format for StateRenderer
+            const modelProbConfig = {
+                title: config.modelProbabilities.title,
+                tooltip: config.modelProbabilities.tooltip,
+                metrics: config.modelProbabilities.models
+            };
+            modelProbabilitiesHtml = StateRenderer.createMetricsSection(modelProbConfig);
+        }
+        if (config.activeModel) {
+            activeModelHtml = `
+                <div class="state-section">
+                    <h3 data-tooltip="${config.activeModel.tooltip}">${config.activeModel.title}</h3>
+                    <div class="state-row">
+                        <span class="state-value" id="${config.activeModel.id}">--</span>
+                    </div>
+                </div>
+            `;
+        }
+        
         const positionCovarianceHtml = StateRenderer.createMatrixSection(config.positionCovariance);
         const errorMetricsHtml = StateRenderer.createMetricsSection(config.errorMetrics);
         const innovationHtml = StateRenderer.createMatrixSection(config.innovation);
         const kalmanGainHtml = StateRenderer.createMatrixSection(config.kalmanGain);
 
         // Combine all sections
-        const fullHtml = titleHtml + stateVectorHtml + positionCovarianceHtml + 
-                        errorMetricsHtml + innovationHtml + kalmanGainHtml;
+        const fullHtml = titleHtml + stateVectorHtml + modelProbabilitiesHtml + activeModelHtml + 
+                        positionCovarianceHtml + errorMetricsHtml + innovationHtml + kalmanGainHtml;
 
         this.statePanelContainer.innerHTML = fullHtml;
 
@@ -172,6 +198,22 @@ class FilterUIManager {
         // Update position covariance
         if (filterState.positionCovariance && config.positionCovariance) {
             MatrixRenderer.updateMatrix('position-covariance-matrix', filterState.positionCovariance);
+        }
+
+        // Update model probabilities (IMM-specific)
+        if (additionalData.modelProbabilities && config.modelProbabilities) {
+            config.modelProbabilities.models.forEach((model, index) => {
+                const probability = additionalData.modelProbabilities[index];
+                if (probability !== undefined) {
+                    StateRenderer.updateStateValue(model.id, (probability * 100).toFixed(1) + '%');
+                }
+            });
+        }
+
+        // Update active model (IMM-specific)
+        if (additionalData.activeModel !== undefined && config.activeModel) {
+            const modelName = additionalData.activeModel === 0 ? 'CA Low-Noise' : 'CA High-Noise';
+            StateRenderer.updateStateValue(config.activeModel.id, modelName);
         }
 
         // Update error metrics

@@ -57,6 +57,16 @@ class SimulationController {
     setFilterType(kind) {
         this.filterType = (kind === 'imm') ? 'imm' : 'kf';
         this.filter = this.createFilter();
+        
+        // Update UI configuration based on filter type
+        if (this.filterUIManager) {
+            const uiFilterType = this.filterType === 'imm' ? 'imm' : 'kalman-filter-2d';
+            this.filterUIManager.loadFilterUI(uiFilterType, this.filter);
+        }
+        
+        // Update canvas title
+        this.updateCanvasTitle();
+        
         this.generateData();
         if (this.ui) this.ui.updateTimeDisplay();
         this.draw();
@@ -244,6 +254,22 @@ class SimulationController {
                 posCov2x2 = MatrixUtils.extractSubmatrix(this.filter.covariance, 0, 1, 0, 1);
             }
 
+            // IMM-specific data
+            let immData = {};
+            if (this.filterType === 'imm' && this.filter.initialized) {
+                immData.modelProbabilities = [...this.filter.mu]; // copy model probabilities
+                immData.activeModel = this.filter.mu[0] >= this.filter.mu[1] ? 0 : 1;
+                
+                // Calculate model entropy: -Σ μ log μ
+                let entropy = 0;
+                for (const mu of this.filter.mu) {
+                    if (mu > 1e-10) { // avoid log(0)
+                        entropy -= mu * Math.log(mu);
+                    }
+                }
+                immData.modelEntropy = entropy;
+            }
+
             this.filterStates.push({
                 state: stateArray,
                 covariance: posCov2x2,
@@ -255,7 +281,8 @@ class SimulationController {
                 initialized: this.filter.initialized,
                 bootstrapCount: Math.min(buffer.length, bootstrapNeeded),
                 bootstrapNeeded: bootstrapNeeded,
-                coveragePct: coverageTotal > 0 ? (coverageHits / coverageTotal) : null
+                coveragePct: coverageTotal > 0 ? (coverageHits / coverageTotal) : null,
+                immData: immData
             });
         }
 
@@ -330,7 +357,8 @@ class SimulationController {
             maxTime: this.config.maxTime,
             dt: this.config.dt,
             errorHistory: this.errorHistory,
-            confidenceHistory: this.confidenceHistory
+            confidenceHistory: this.confidenceHistory,
+            filterStates: this.filterStates
         });
 
         const timeIndex = Math.floor(this.currentTime / this.config.dt);
@@ -370,9 +398,21 @@ class SimulationController {
                 if (typeof filterState.coveragePct === 'number') {
                     errorMetrics['coverage-95'] = (filterState.coveragePct * 100).toFixed(1) + '%';
                 }
+                
+                // Add IMM-specific error metrics
+                if (filterState.immData && filterState.immData.modelEntropy !== undefined) {
+                    errorMetrics['model-entropy'] = filterState.immData.modelEntropy.toFixed(3);
+                }
             }
             
-            this.filterUIManager.updateDisplay(formattedFilterState, { errorMetrics });
+            // Prepare additional data for UI
+            const additionalData = {
+                errorMetrics: errorMetrics,
+                modelProbabilities: filterState.immData ? filterState.immData.modelProbabilities : null,
+                activeModel: filterState.immData ? filterState.immData.activeModel : null
+            };
+            
+            this.filterUIManager.updateDisplay(formattedFilterState, additionalData);
             
             // Update measurement status
             if (!filterState.initialized) {
@@ -395,8 +435,22 @@ class SimulationController {
         requestAnimationFrame(() => this.animate());
     }
 
+    updateCanvasTitle() {
+        const titleElement = document.getElementById('canvas-title');
+        if (titleElement) {
+            let title = '';
+            if (this.filterType === 'imm') {
+                title = 'IMM Filter (2-Model)';
+            } else {
+                title = '2D Kalman Filter';
+            }
+            titleElement.textContent = title;
+        }
+    }
+
     start() {
         this.ui = new UIController(this);
+        this.updateCanvasTitle(); // Set initial title
         this.draw();
         this.visualization.initializeResetHandler();
         this.visualization.setOnViewChange(() => this.draw()); // redraw even when paused

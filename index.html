@@ -28,7 +28,7 @@
                 <label data-tooltip="Choose the estimation algorithm. IMM blends multiple motion models by probabilistically switching between them.">Filter:</label>
                 <select id="filterSelect">
                     <option value="kf" selected>Kalman (CA 6-state)</option>
-                    <option value="imm">IMM (2-model: smooth ↔ maneuver)</option>
+                    <option value="imm">IMM (2-model: CA low/high noise)</option>
                 </select>
             </div>
 
@@ -70,7 +70,7 @@
                 <canvas id="canvas" width="650" height="450"></canvas>
                 
                 <!-- Overlay Title -->
-                <div class="canvas-title">
+                <div class="canvas-title" id="canvas-title">
                     2D Kalman Filter - Multi-Shape Tracking
                 </div>
                 
@@ -160,9 +160,11 @@
     <script src="scripts/ui/state-renderer.js"></script>
     <script src="scripts/ui/equation-renderer.js"></script>
     <script src="scripts/ui/filter-ui-manager.js"></script>
+    <script src="scripts/ui/tooltip-system.js"></script>
 
     <!-- Filter-specific UI configurations -->
     <script src="scripts/filters/kalman-filter-2d/kalman-ui-config.js"></script>
+    <script src="scripts/filters/imm-ui-config.js"></script>
 
     <!-- Visualization components -->
     <script src="scripts/visualization/visualization-engine.js"></script>

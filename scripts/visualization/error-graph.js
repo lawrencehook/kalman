@@ -10,13 +10,13 @@ class ErrorGraphVisualization {
             marginLeft: 60,
             marginRight: 30,
             marginTop: 30,
-            marginBottom: 40,
+            marginBottom: 50,
             ...config
         };
     }
 
     draw(data) {
-        const { currentTime, maxTime, dt, errorHistory, confidenceHistory } = data;
+        const { currentTime, maxTime, dt, errorHistory, confidenceHistory, filterStates } = data;
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.save();
@@ -38,7 +38,14 @@ class ErrorGraphVisualization {
                 maxError = Math.max(maxError, conf);
             }
         });
-        maxError = Math.max(maxError, 50); // Minimum scale
+        
+        // Use adaptive scaling with a small minimum to avoid zero scale  
+        maxError = Math.max(maxError, 0.1); // Minimum scale of 0.1 pixel
+        
+        // Add 10% padding to the top for better visualization
+        maxError = maxError * 1.1;
+        
+        console.log('Error graph max value:', maxError); // Debug log
 
         // Draw axes
         this.ctx.strokeStyle = '#666';
@@ -60,7 +67,9 @@ class ErrorGraphVisualization {
         for (let i = 0; i <= yTicks; i++) {
             const value = (maxError * i / yTicks);
             const y = plotTop + plotHeight - (i / yTicks) * plotHeight;
-            this.ctx.fillText(value.toFixed(0), plotLeft - 5, y);
+            // Use appropriate precision based on the scale
+            const precision = maxError < 10 ? 1 : (maxError < 100 ? 0 : 0);
+            this.ctx.fillText(value.toFixed(precision), plotLeft - 5, y);
 
             // Grid lines
             if (i > 0) {
@@ -97,7 +106,7 @@ class ErrorGraphVisualization {
         this.ctx.fillStyle = '#4af';
         this.ctx.font = '14px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('Time (seconds)', plotLeft + plotWidth / 2, this.canvas.height - 5);
+        this.ctx.fillText('Time (seconds)', plotLeft + plotWidth / 2, this.canvas.height - 15);
 
         this.ctx.save();
         this.ctx.translate(15, plotTop + plotHeight / 2);
@@ -182,6 +191,119 @@ class ErrorGraphVisualization {
         this.ctx.lineTo(currentTimeX, plotTop + plotHeight);
         this.ctx.stroke();
 
+        // Draw IMM-specific information if available
+        if (filterStates && filterStates.length > 0 && filterStates[0].immData) {
+            this.drawIMMInfo(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt);
+        }
+
         this.ctx.restore();
+    }
+
+    drawIMMInfo(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt) {
+        // Draw model probability traces in the bottom portion of the graph
+        const immHeight = Math.min(60, plotHeight * 0.3); // Use bottom 30% or max 60px
+        const immTop = plotTop + plotHeight - immHeight;
+        
+        // Draw separator line
+        this.ctx.strokeStyle = '#666';
+        this.ctx.lineWidth = 1;
+        this.ctx.globalAlpha = 0.5;
+        this.ctx.beginPath();
+        this.ctx.moveTo(plotLeft, immTop);
+        this.ctx.lineTo(plotLeft + plotWidth, immTop);
+        this.ctx.stroke();
+
+        // Helper function to convert data coordinates to canvas coordinates for IMM section
+        const dataToIMMCanvas = (t, probability) => {
+            const x = plotLeft + (t / maxTime) * plotWidth;
+            const y = immTop + immHeight - (probability * immHeight);
+            return [x, y];
+        };
+
+        // Draw model 0 (smooth) probability
+        this.ctx.strokeStyle = '#4f4';
+        this.ctx.lineWidth = 2;
+        this.ctx.globalAlpha = 0.8;
+        this.ctx.beginPath();
+        let firstPoint = true;
+        for (let i = 0; i < filterStates.length; i++) {
+            const state = filterStates[i];
+            if (state.immData && state.immData.modelProbabilities) {
+                const t = i * dt;
+                const prob0 = state.immData.modelProbabilities[0];
+                const [x, y] = dataToIMMCanvas(t, prob0);
+                if (firstPoint) {
+                    this.ctx.moveTo(x, y);
+                    firstPoint = false;
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+        }
+        this.ctx.stroke();
+
+        // Draw model 1 (maneuvering) probability
+        this.ctx.strokeStyle = '#f84';
+        this.ctx.lineWidth = 2;
+        this.ctx.globalAlpha = 0.8;
+        this.ctx.beginPath();
+        firstPoint = true;
+        for (let i = 0; i < filterStates.length; i++) {
+            const state = filterStates[i];
+            if (state.immData && state.immData.modelProbabilities) {
+                const t = i * dt;
+                const prob1 = state.immData.modelProbabilities[1];
+                const [x, y] = dataToIMMCanvas(t, prob1);
+                if (firstPoint) {
+                    this.ctx.moveTo(x, y);
+                    firstPoint = false;
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+        }
+        this.ctx.stroke();
+
+        // Add IMM section labels
+        this.ctx.fillStyle = '#aaa';
+        this.ctx.font = '10px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('Model Prob.', plotLeft - 50, immTop + immHeight / 2);
+
+        // Add legend for model probabilities
+        const legendY = immTop + 10;
+        this.ctx.fillStyle = '#4f4';
+        this.ctx.fillRect(plotLeft + 10, legendY, 12, 3);
+        this.ctx.fillStyle = '#aaa';
+        this.ctx.font = '10px Arial';
+        this.ctx.fillText('CA Low-Noise', plotLeft + 25, legendY + 2);
+        
+        this.ctx.fillStyle = '#f84';
+        this.ctx.fillRect(plotLeft + 90, legendY, 12, 3);
+        this.ctx.fillStyle = '#aaa';
+        this.ctx.fillText('CA High-Noise', plotLeft + 105, legendY + 2);
+
+        // Mark model switches with vertical lines
+        let prevActiveModel = null;
+        for (let i = 0; i < filterStates.length; i++) {
+            const state = filterStates[i];
+            if (state.immData && state.immData.activeModel !== undefined) {
+                const currentActiveModel = state.immData.activeModel;
+                if (prevActiveModel !== null && currentActiveModel !== prevActiveModel) {
+                    // Model switch detected
+                    const t = i * dt;
+                    const x = plotLeft + (t / maxTime) * plotWidth;
+                    this.ctx.strokeStyle = '#ff4';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.globalAlpha = 0.7;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, immTop);
+                    this.ctx.lineTo(x, immTop + immHeight);
+                    this.ctx.stroke();
+                }
+                prevActiveModel = currentActiveModel;
+            }
+        }
     }
 }
