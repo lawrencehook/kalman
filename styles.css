@@ -14,7 +14,11 @@ body {
 .viz-container {
     flex: 1;
     min-width: 650px;
+}
+
+.canvas-wrapper {
     position: relative;
+    display: inline-block;
 }
 #canvas {
     border: 1px solid #444;
@@ -309,23 +313,6 @@ input[type="range"] {
     font-size: 12px;
     margin-left: 8px;
 }
-.legend {
-    margin: 4px auto 6px;
-    max-width: 1400px;
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-}
-.legend-color {
-    width: 16px;
-    height: 3px;
-}
 button {
     padding: 6px 12px;
     margin: 3px;
@@ -470,4 +457,47 @@ button:hover {
     margin: 0;
     font-size: 11px;
     min-width: auto;
+}
+
+/* Canvas overlay title */
+.canvas-title {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(26, 26, 26, 0.9);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    border: 1px solid #444;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    white-space: nowrap;
+}
+
+/* Canvas overlay legend */
+.canvas-legend {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    background: rgba(42, 42, 42, 0.9);
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #444;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.canvas-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+}
+
+.canvas-legend .legend-color {
+    width: 12px;
+    height: 3px;
 }

@@ -289,6 +289,13 @@ class SimulationController {
         this.draw();
     }
 
+    stepBackward() {
+        this.playing = false;
+        this.currentTime -= this.config.dt;
+        if (this.currentTime < 0) this.currentTime = this.config.maxTime;
+        this.draw();
+    }
+
     reset() {
         this.playing = false;
         this.currentTime = 0;

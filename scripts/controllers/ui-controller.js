@@ -50,6 +50,36 @@ class UIController {
         document.getElementById('playBtn').addEventListener('click', () => this.sim.togglePlay());
         document.getElementById('stepBtn').addEventListener('click', () => this.sim.step());
         document.getElementById('resetBtn').addEventListener('click', () => this.sim.reset());
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Only handle keys when not typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+                return;
+            }
+
+            switch(e.key) {
+                case 'ArrowRight':
+                    e.preventDefault();
+                    this.sim.step();
+                    this.updateTimeDisplay();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    this.sim.stepBackward();
+                    this.updateTimeDisplay();
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    this.sim.togglePlay();
+                    break;
+                case 'r':
+                case 'R':
+                    e.preventDefault();
+                    this.sim.reset();
+                    break;
+            }
+        });
     }
 
     updateTimeDisplay() {

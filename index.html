@@ -7,26 +7,6 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1 style="text-align: center; margin: 5px 0; font-size: 20px;">2D Kalman Filter - Multi-Shape Tracking</h1>
-
-    <div class="legend">
-        <div class="legend-item">
-            <div class="legend-color" style="background: #0f0;"></div>
-            <span>Ground Truth</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #f0f;"></div>
-            <span>Measurements</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #0ff; width: 6px; height: 6px; border-radius: 3px;"></div>
-            <span>Kalman Estimates</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: rgba(0,255,255,0.3);"></div>
-            <span>95% Confidence</span>
-        </div>
-    </div>
 
     <div class="main-container">
         <!-- Controls Panel - Left Side -->
@@ -85,13 +65,41 @@
 
         <!-- Visualization Container - Center -->
         <div class="viz-container">
-            <canvas id="canvas" width="650" height="450"></canvas>
-            
-            <!-- Overlay Control Buttons -->
-            <div class="canvas-controls">
-                <button id="playBtn">Play/Pause</button>
-                <button id="stepBtn">Step</button>
-                <button id="resetBtn">Reset</button>
+            <!-- Canvas with overlays -->
+            <div class="canvas-wrapper">
+                <canvas id="canvas" width="650" height="450"></canvas>
+                
+                <!-- Overlay Title -->
+                <div class="canvas-title">
+                    2D Kalman Filter - Multi-Shape Tracking
+                </div>
+                
+                <!-- Overlay Legend -->
+                <div class="canvas-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #0f0;"></div>
+                        <span>Ground Truth</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f0f;"></div>
+                        <span>Measurements</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #0ff; width: 6px; height: 6px; border-radius: 3px;"></div>
+                        <span>Kalman Estimates</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(0,255,255,0.3);"></div>
+                        <span>95% Confidence</span>
+                    </div>
+                </div>
+                
+                <!-- Overlay Control Buttons -->
+                <div class="canvas-controls">
+                    <button id="playBtn">Play/Pause</button>
+                    <button id="stepBtn">Step</button>
+                    <button id="resetBtn">Reset</button>
+                </div>
             </div>
 
             <!-- Error Graph -->
