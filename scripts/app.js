@@ -10,17 +10,20 @@ function startApplication() {
     const filterUIManager = new FilterUIManager();
     filterUIManager.initialize();
     
+    // Get the actual selected filter from dropdown after population
+    const selectedFilterKey = getSelectedFilterKey();
+    
     const config = { 
         maxTime: 30, 
         dt: 0.05, 
         measurementRate: 0.1,
-        filterUIManager: filterUIManager 
+        filterUIManager: filterUIManager,
+        initialFilterType: selectedFilterKey
     };
     const simulation = new SimulationController(config);
     
-    // Load the default filter UI
-    const defaultFilterKey = getDefaultFilterKey();
-    filterUIManager.loadFilterUI(defaultFilterKey, null);
+    // Load the selected filter UI
+    filterUIManager.loadFilterUI(selectedFilterKey, null);
     
     // Set up event handlers with matrix toggle callback
     filterUIManager.setupEventHandlers((isVisible) => simulation.setMatrixVisibility(isVisible));
@@ -54,22 +57,24 @@ function populateFilterDropdown() {
         });
     } catch (error) {
         console.error('Failed to populate filter dropdown:', error);
-        // Fallback option
-        const option = document.createElement('option');
-        option.value = 'kalman-2d';
-        option.textContent = 'Kalman (CA 6-state)';
-        option.selected = true;
-        filterSelect.appendChild(option);
+        // No fallback - let the system handle the error gracefully
     }
 }
 
-function getDefaultFilterKey() {
+function getSelectedFilterKey() {
     try {
+        const filterSelect = document.getElementById('filterSelect');
+        if (filterSelect && filterSelect.value) {
+            return filterSelect.value;
+        }
+        
+        // Fallback to first available filter if dropdown not populated yet
         const availableFilters = FilterRegistry.getAvailableFilters();
-        return availableFilters.length > 0 ? availableFilters[0].value : 'kalman-2d';
+        return availableFilters.length > 0 ? availableFilters[0].value : null;
     } catch (error) {
-        console.error('Failed to get default filter:', error);
-        return 'kalman-2d';
+        console.error('Failed to get selected filter:', error);
+        const availableFilters = FilterRegistry.getAvailableFilters();
+        return availableFilters.length > 0 ? availableFilters[0].value : null;
     }
 }
 

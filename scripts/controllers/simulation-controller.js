@@ -15,7 +15,10 @@ class SimulationController {
 
         this.trajectoryType = 'circle';
         this.trajectoryGenerator = this.createTrajectoryGenerator();
-        this.filterType = 'kalman-2d'; // Default filter type
+        this.filterType = config.initialFilterType || this.getDefaultFilterKey(); // Use provided initial type
+        if (!this.filterType) {
+            throw new Error('No filter types available in registry');
+        }
         this.filter = this.createFilter();
         this.visualization = new VisualizationEngine('canvas');
         this.errorGraph = new ErrorGraphVisualization('errorGraph');
@@ -443,5 +446,15 @@ class SimulationController {
         this.visualization.initializeResetHandler();
         this.visualization.setOnViewChange(() => this.draw()); // redraw even when paused
         this.animate();
+    }
+
+    getDefaultFilterKey() {
+        try {
+            const availableFilters = FilterRegistry.getAvailableFilters();
+            return availableFilters.length > 0 ? availableFilters[0].value : null;
+        } catch (error) {
+            console.error('Failed to get default filter:', error);
+            return null;
+        }
     }
 }

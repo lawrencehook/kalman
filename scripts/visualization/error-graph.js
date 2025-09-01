@@ -102,11 +102,11 @@ class ErrorGraphVisualization {
             }
         }
 
-        // Axis labels
+        // Time axis label - moved to far left
         this.ctx.fillStyle = '#4af';
         this.ctx.font = '14px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('Time (seconds)', plotLeft + plotWidth / 2, this.canvas.height - 15);
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('Time (seconds)', plotLeft, this.canvas.height - 15);
 
         this.ctx.save();
         this.ctx.translate(15, plotTop + plotHeight / 2);
@@ -216,34 +216,30 @@ class ErrorGraphVisualization {
             ];
         }
 
-        // Position legend in bottom right corner
-        const legendWidth = 180;
-        const legendHeight = 80;
-        const legendX = plotLeft + plotWidth - legendWidth - 10;
-        const legendY = plotTop + plotHeight - legendHeight - 10;
-
-        // Draw legend background
-        this.ctx.fillStyle = 'rgba(42, 42, 42, 0.9)';
-        this.ctx.strokeStyle = '#444';
-        this.ctx.lineWidth = 1;
-        this.ctx.fillRect(legendX, legendY, legendWidth, legendHeight);
-        this.ctx.strokeRect(legendX, legendY, legendWidth, legendHeight);
-
-        let itemY = legendY + 15;
+        // Position legend horizontally at bottom of plot area
+        // Calculate available space after "Time (seconds)" label
+        const timeTextWidth = this.ctx.measureText('Time (seconds)').width + 20; // Add padding
+        const legendStartX = plotLeft + timeTextWidth;
+        const availableWidth = plotWidth - timeTextWidth;
+        const legendY = this.canvas.height - 15; // Same y position as time label
+        
+        // Calculate spacing for horizontal layout
+        const itemSpacing = availableWidth / legendItems.length;
+        
         this.ctx.font = '11px Arial';
-        this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
-
-        legendItems.forEach(item => {
+        
+        legendItems.forEach((item, index) => {
+            const itemX = legendStartX + (index * itemSpacing);
+            
             // Draw color indicator
             this.ctx.fillStyle = item.color;
-            this.ctx.fillRect(legendX + 10, itemY - item.height / 2, item.width, item.height);
+            this.ctx.fillRect(itemX, legendY - item.height / 2, item.width, item.height);
             
             // Draw label
             this.ctx.fillStyle = '#fff';
-            this.ctx.fillText(item.label, legendX + 30, itemY);
-            
-            itemY += 18;
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(item.label, itemX + item.width + 5, legendY);
         });
     }
 
