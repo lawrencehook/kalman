@@ -5,18 +5,11 @@
 class StateDisplayEngine {
     constructor() { 
         this.elements = {};
-        this.timeline = [];
-        this.maxTimelineLength = 15;
         this.initialized = false;
-        this.updateCount = 0;
     }
 
     cacheElements() {
-        const timelineElement = document.getElementById('measurementTimeline');
-        console.log('cacheElements: measurementTimeline =', timelineElement);
-        
         return {
-            measurementTimeline: timelineElement,
             stateX: document.getElementById('state-x'),
             stateY: document.getElementById('state-y'),
             stateVx: document.getElementById('state-vx'),
@@ -58,21 +51,13 @@ class StateDisplayEngine {
     }
 
     updateDisplay(filterState, groundTruth, systemMatrices, showMatrices) {
-        console.log('StateDisplayEngine.updateDisplay called with:', filterState);
-        
-        // Initialize timeline on first call (after DOM is ready)
+        // Initialize on first call (after DOM is ready)
         if (!this.initialized) {
-            console.log('Initializing StateDisplayEngine for first time');
             this.elements = this.cacheElements();
-            this.initializeTimeline();
             this.initialized = true;
         }
 
-        const { state, covariance, innovation, kalmanGain, innovationCovariance, hadMeasurement, initialized, bootstrapCount, bootstrapNeeded } = filterState;
-
-        // Update timeline with current state
-        console.log('About to update timeline:', { initialized, hadMeasurement, bootstrapCount, bootstrapNeeded });
-        this.updateTimeline(initialized, hadMeasurement, bootstrapCount, bootstrapNeeded);
+        const { state, covariance, innovation, kalmanGain, innovationCovariance, initialized } = filterState;
 
         // State vector
         const setVal = (el, val) => {
@@ -117,7 +102,7 @@ class StateDisplayEngine {
             }
 
             // Innovation / gain
-            this.updateInnovationAndGain(innovation, kalmanGain, !hadMeasurement);
+            this.updateInnovationAndGain(innovation, kalmanGain, false);
         }
 
         if (showMatrices && systemMatrices) {
@@ -173,100 +158,4 @@ class StateDisplayEngine {
         }
     }
 
-    initializeTimeline() {
-        console.log('initializeTimeline called');
-        console.log('measurementTimeline element:', this.elements.measurementTimeline);
-        
-        if (!this.elements.measurementTimeline) {
-            console.warn('measurementTimeline element not found!');
-            return;
-        }
-        
-        // Create 15 circles initially filled with gray (no data)
-        this.elements.measurementTimeline.innerHTML = '';
-        console.log('Creating', this.maxTimelineLength, 'circles');
-        
-        for (let i = 0; i < this.maxTimelineLength; i++) {
-            const circle = document.createElement('div');
-            circle.className = 'timeline-circle';
-            circle.dataset.index = i;
-            circle.style.backgroundColor = '#666'; // Gray for no data
-            circle.title = 'No data yet';
-            this.elements.measurementTimeline.appendChild(circle);
-        }
-        
-        console.log('Timeline initialized with', this.elements.measurementTimeline.children.length, 'circles');
-        
-        // Initialize timeline state array with individual objects
-        this.timeline = Array.from({ length: this.maxTimelineLength }, () => ({ type: 'none', tooltip: 'No data yet' }));
-    }
-
-    updateTimeline(initialized, hadMeasurement, bootstrapCount, bootstrapNeeded) {
-        this.updateCount++;
-        console.log(`StateDisplayEngine.updateTimeline #${this.updateCount} called with:`, { initialized, hadMeasurement, bootstrapCount, bootstrapNeeded });
-        
-        // Initialize timeline on first call (after DOM is ready)
-        if (!this.initialized) {
-            console.log('Initializing StateDisplayEngine timeline for first time');
-            this.elements = this.cacheElements();
-            this.initializeTimeline();
-            this.initialized = true;
-        }
-
-        if (!this.elements.measurementTimeline) return;
-        
-        // Determine current state
-        let currentState;
-        if (!initialized) {
-            const bCount = bootstrapCount || 0;
-            const bNeeded = bootstrapNeeded || 3;
-            console.log(`Filter not initialized - bootstrapping (${bCount}/${bNeeded})`);
-            currentState = {
-                type: 'bootstrapping',
-                tooltip: `Bootstrapping (${bCount}/${bNeeded})`,
-                color: '#f84' // Direct color value for warning/orange
-            };
-        } else if (hadMeasurement) {
-            console.log('Filter initialized with measurement update');
-            currentState = {
-                type: 'measurement',
-                tooltip: 'Measurement Update',
-                color: '#4f4' // Direct color value for success/green
-            };
-        } else {
-            console.log('Filter initialized with prediction only');
-            currentState = {
-                type: 'prediction',
-                tooltip: 'Prediction Only', 
-                color: '#f44' // Direct color value for error/red
-            };
-        }
-        
-        console.log('Timeline update:', currentState.type, 'color:', currentState.color);
-        console.log('Current state values:', { initialized, hadMeasurement, bootstrapCount, bootstrapNeeded });
-        
-        // Add new state to timeline (shift left, add right)
-        this.timeline.shift();
-        this.timeline.push(currentState);
-        
-        // Update visual circles
-        const circles = this.elements.measurementTimeline.querySelectorAll('.timeline-circle');
-        console.log('Found', circles.length, 'circles to update');
-        
-        circles.forEach((circle, index) => {
-            const state = this.timeline[index];
-            console.log(`Circle ${index}:`, state);
-            
-            if (state && state.type === 'none') {
-                circle.style.setProperty('background-color', '#666', 'important');
-                circle.title = state.tooltip;
-            } else if (state) {
-                circle.style.setProperty('background-color', state.color, 'important');
-                circle.title = state.tooltip;
-                console.log(`Set circle ${index} to color:`, state.color);
-            }
-        });
-        
-        console.log('Updated', circles.length, 'circles');
-    }
 }

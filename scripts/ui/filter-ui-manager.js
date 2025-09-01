@@ -81,10 +81,6 @@ class FilterUIManager {
                 data-tooltip="The ${config.filterName} waits for a few measurements to initialize, then fuses measurements with the motion model.">
                 Filter State
             </h2>
-            
-            <div id="measurementTimeline" class="measurement-timeline">
-                <!-- Timeline circles will be generated dynamically -->
-            </div>
         `;
 
         // Generate sections
@@ -258,22 +254,6 @@ class FilterUIManager {
             });
         }
 
-        // Update timeline display via StateDisplayEngine
-        if (this.stateDisplayEngine) {
-            console.log('Full filterState object:', filterState);
-            console.log('FilterUIManager passing to timeline:', {
-                initialized: filterState.initialized,
-                hadMeasurement: filterState.hadMeasurement,
-                bootstrapCount: filterState.bootstrapCount,
-                bootstrapNeeded: filterState.bootstrapNeeded
-            });
-            this.stateDisplayEngine.updateTimeline(
-                filterState.initialized, 
-                filterState.hadMeasurement, 
-                filterState.bootstrapCount, 
-                filterState.bootstrapNeeded
-            );
-        }
     }
 
     /**

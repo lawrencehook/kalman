@@ -166,3 +166,7 @@ kalman/
 - Real-time Canvas rendering with 60fps animation
 - Bootstrap filter initialization from measurements
 - Coverage analysis and statistical validation
+
+## Git Workflow Preferences
+
+**IMPORTANT**: Only run git add/commit/push commands when explicitly requested by the user. Make code changes as needed, but do not automatically commit them unless specifically asked.

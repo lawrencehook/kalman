@@ -178,31 +178,6 @@ body {
 .slider-container label {
     cursor: help;
 }
-/* Timeline for measurement status visualization */
-.measurement-timeline {
-    display: flex;
-    gap: 3px;
-    justify-content: center;
-    padding: 8px 0;
-    margin: 6px 0;
-}
-
-.timeline-circle {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: #666 !important; /* Force visibility */
-    border: 1px solid #444;
-    cursor: help;
-    transition: transform 0.1s ease;
-    flex-shrink: 0; /* Prevent circles from shrinking */
-    display: inline-block;
-}
-
-.timeline-circle:hover {
-    transform: scale(1.2);
-    border-color: #aaa;
-}
 .slider-container {
     margin: 8px 0;
 }

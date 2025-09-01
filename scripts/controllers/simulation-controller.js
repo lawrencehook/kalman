@@ -6,7 +6,7 @@ class SimulationController {
     constructor(config = {}) {
         this.config = {
             maxTime: 30,
-            dt: 0.01, // Further reduced for even slower animation progression
+            dt: 0.05,
             measurementRatio: 2.0,
             bootstrapMeasurements: 3,
             ...config
@@ -393,12 +393,7 @@ class SimulationController {
                 positionCovariance: filterState.covariance,
                 innovation: filterState.innovation ? filterState.innovation.map(val => [val]) : null, // Convert to column vector format  
                 kalmanGain: filterState.kalmanGain,
-                systemMatrices: systemMatrices,
-                // Add timeline-required fields
-                hadMeasurement: filterState.hadMeasurement,
-                initialized: filterState.initialized,
-                bootstrapCount: filterState.bootstrapCount,
-                bootstrapNeeded: filterState.bootstrapNeeded
+                systemMatrices: systemMatrices
             };
             
             // Calculate error metrics
