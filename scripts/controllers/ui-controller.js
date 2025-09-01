@@ -67,6 +67,10 @@ class UIController {
                     break;
                 case 'r':
                 case 'R':
+                    // Allow Cmd+R (or Ctrl+R) for browser refresh
+                    if (e.metaKey || e.ctrlKey) {
+                        return;
+                    }
                     e.preventDefault();
                     this.sim.reset();
                     break;
