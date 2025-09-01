@@ -6,7 +6,7 @@ class SimulationController {
     constructor(config = {}) {
         this.config = {
             maxTime: 30,
-            dt: 0.05,
+            dt: 0.025, // Reduced from 0.05 to make animation progress 2x slower
             measurementRatio: 2.0,
             bootstrapMeasurements: 3,
             ...config
@@ -27,8 +27,6 @@ class SimulationController {
         this.currentTime = 0;
         this.playing = false;
         this.showMatrices = false;
-        this.lastFrameTime = 0;
-        this.frameInterval = 1000 / 30; // 30 fps instead of 60 fps (2x slower)
 
         this.groundTruth = [];
         this.measurements = [];
@@ -438,17 +436,14 @@ class SimulationController {
         }
     }
 
-    animate(timestamp = 0) {
-        if (timestamp - this.lastFrameTime >= this.frameInterval) {
-            if (this.playing) {
-                this.currentTime += this.config.dt;
-                if (this.currentTime > this.config.maxTime) this.currentTime = 0;
-                if (this.ui) this.ui.updateTimeDisplay();
-                this.draw();
-            }
-            this.lastFrameTime = timestamp;
+    animate() {
+        if (this.playing) {
+            this.currentTime += this.config.dt;
+            if (this.currentTime > this.config.maxTime) this.currentTime = 0;
+            if (this.ui) this.ui.updateTimeDisplay();
+            this.draw();
         }
-        requestAnimationFrame((ts) => this.animate(ts));
+        requestAnimationFrame(() => this.animate());
     }
 
     updateCanvasTitle() {
