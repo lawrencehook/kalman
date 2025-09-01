@@ -9,10 +9,8 @@ class UIController {
     }
 
     initializeControls() {
-        document.getElementById('trajectorySelect').addEventListener('change', (e) => {
-            this.sim.setTrajectoryType(e.target.value);
-        });
-
+        // Trajectory and filter selection now handled by custom dropdowns in app.js
+        
         const timeSlider = document.getElementById('timeSlider');
         const timeValue = document.getElementById('timeValue');
         timeSlider.max = this.sim.config.maxTime / this.sim.config.dt;
@@ -21,12 +19,6 @@ class UIController {
             this.sim.setTime(e.target.value * this.sim.config.dt);
             timeValue.textContent = this.sim.currentTime.toFixed(2) + 's';
         });
-
-        const filterSelect = document.getElementById('filterSelect');
-        if (filterSelect) {
-            filterSelect.value = this.sim.filterType || 'kf';
-            filterSelect.addEventListener('change', (e) => this.sim.setFilterType(e.target.value));
-        }
 
         document.getElementById('measurementNoise').addEventListener('input', (e) => {
             document.getElementById('measurementNoiseValue').textContent = e.target.value;

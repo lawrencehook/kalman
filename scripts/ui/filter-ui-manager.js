@@ -120,6 +120,7 @@ class FilterUIManager {
         MatrixRenderer.ensureMatrixClass(...config.kalmanGain.size);
     }
 
+
     /**
      * Generate the system matrices section HTML
      * @param {Object} config - Filter UI configuration

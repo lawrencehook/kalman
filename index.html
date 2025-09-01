@@ -11,25 +11,6 @@
     <div class="main-container">
         <!-- Controls Panel - Left Side -->
         <div class="controls">
-            <div class="dropdown-container">
-                <label data-tooltip="Select the trajectory shape for the object to follow. Different shapes test various aspects of the filter's performance.">Trajectory Shape:</label>
-                <select id="trajectorySelect">
-                    <option value="constantacceleration">Constant Acceleration Line</option>
-                    <option value="constantvelocity">Constant Velocity Line</option>
-                    <option value="sinewave">Sine Wave</option>
-                    <option value="parabolic">Parabolic Arc</option>
-                    <option value="circle" selected>Circle</option>
-                    <option value="infinity">Infinity (∞)</option>
-                    <option value="star">Star</option>
-                </select>
-            </div>
-
-            <div class="dropdown-container">
-                <label data-tooltip="Choose the estimation algorithm. Different filters use different approaches to track object motion.">Filter:</label>
-                <select id="filterSelect">
-                    <!-- Options populated dynamically by FilterRegistry -->
-                </select>
-            </div>
 
             <div class="slider-container">
                 <label data-tooltip="Current simulation time. The filter runs at 20Hz (every 0.05s) while measurement frequency is configurable via the Measurement Rate Ratio slider.">Time:</label>
@@ -68,9 +49,10 @@
             <div class="canvas-wrapper">
                 <canvas id="canvas" width="650" height="450"></canvas>
                 
-                <!-- Overlay Title -->
-                <div class="canvas-title" id="canvas-title">
-                    2D Kalman Filter - Multi-Shape Tracking
+                <!-- Custom Dropdowns -->
+                <div class="canvas-dropdowns">
+                    <div id="filter-dropdown-container" class="canvas-dropdown-container"></div>
+                    <div id="trajectory-dropdown-container" class="canvas-dropdown-container"></div>
                 </div>
                 
                 <!-- Overlay Legend -->
@@ -149,6 +131,7 @@
     <script src="scripts/ui/matrix-renderer.js"></script>
     <script src="scripts/ui/state-renderer.js"></script>
     <script src="scripts/ui/equation-renderer.js"></script>
+    <script src="scripts/ui/custom-dropdown.js"></script>
     <script src="scripts/ui/filter-ui-manager.js"></script>
     <script src="scripts/ui/tooltip-system.js"></script>
 
