@@ -6,7 +6,7 @@ class SimulationController {
     constructor(config = {}) {
         this.config = {
             maxTime: 30,
-            dt: 0.025, // Reduced from 0.05 to make animation progress 2x slower
+            dt: 0.01, // Further reduced for even slower animation progression
             measurementRatio: 2.0,
             bootstrapMeasurements: 3,
             ...config
