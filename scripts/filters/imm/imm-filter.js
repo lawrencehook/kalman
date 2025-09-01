@@ -150,8 +150,39 @@ class IMMFilter extends FilterBase {
     }
     
     getSystemMatrices(){
-        const jStar = this.mu[0] >= this.mu[1] ? 0 : 1;
-        return this.models[jStar].getSystemMatrices();
+        // For IMM, provide all matrices that the UI expects
+        const matrices = {};
+        
+        // Get matrices from both models if available
+        if (this.models && this.models[0] && typeof this.models[0].getSystemMatrices === 'function') {
+            const model0Matrices = this.models[0].getSystemMatrices();
+            const model1Matrices = this.models[1] && typeof this.models[1].getSystemMatrices === 'function' 
+                ? this.models[1].getSystemMatrices() : model0Matrices;
+            
+            // Standard matrices (same for both models)
+            matrices.F = model0Matrices.F;
+            matrices.H = model0Matrices.H;
+            matrices.R = model0Matrices.R;
+            
+            // Model-specific process noise matrices
+            matrices.Q0 = model0Matrices.Q;
+            matrices.Q1 = model1Matrices.Q;
+            
+            // IMM-specific matrices
+            matrices.Pi = this.Pi;  // Model transition probabilities
+            matrices.P = this.covariance;  // Combined covariance
+        } else {
+            // Fallback: return null matrices
+            matrices.F = null;
+            matrices.H = null;
+            matrices.Q0 = null;
+            matrices.Q1 = null;
+            matrices.R = null;
+            matrices.Pi = null;
+            matrices.P = null;
+        }
+        
+        return matrices;
     }
     
     getName() {

@@ -40,6 +40,11 @@ class FilterUIManager {
         this.generateStatePanel(config);
         this.generateSystemMatricesSection(config);
         this.generateEquationsSection(config);
+        
+        // Re-setup event handlers after generating new UI
+        if (this.matrixToggleCallback) {
+            this.setupEventHandlers(this.matrixToggleCallback);
+        }
     }
 
     /**
@@ -171,8 +176,13 @@ class FilterUIManager {
      * @param {Function} onMatrixToggle - Optional callback when matrix visibility changes
      */
     setupEventHandlers(onMatrixToggle = null) {
+        // Store callback for future use
+        if (onMatrixToggle) {
+            this.matrixToggleCallback = onMatrixToggle;
+        }
+        
         // Set up matrices toggle with optional callback
-        EquationRenderer.setupMatricesToggle('matricesSection', 'toggleMatrices', onMatrixToggle);
+        EquationRenderer.setupMatricesToggle('matricesSection', 'toggleMatrices', onMatrixToggle || this.matrixToggleCallback);
     }
 
     /**
