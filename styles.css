@@ -1,0 +1,489 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 8px;
+    background: #1a1a1a;
+    color: #fff;
+}
+.main-container {
+    display: flex;
+    gap: 15px;
+    max-width: 1600px;
+    margin: 0 auto;
+    align-items: flex-start;
+}
+.viz-container {
+    flex: 1;
+    min-width: 650px;
+}
+
+.canvas-wrapper {
+    position: relative;
+    display: inline-block;
+}
+#canvas {
+    border: 1px solid #444;
+    background: #0a0a0a;
+    display: block;
+    margin: 5px auto;
+}
+#errorGraph {
+    border: 1px solid #444;
+    background: #0a0a0a;
+    display: block;
+    margin: 0 auto;
+}
+.error-graph-container {
+    margin: 5px 0;
+}
+.error-legend {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin: 5px 0 10px;
+}
+.controls {
+    width: 400px;
+    padding: 12px;
+    background: #2a2a2a;
+    border-radius: 6px;
+    height: fit-content;
+}
+.system-matrices {
+    max-width: 1200px;
+    margin: 0 auto 6px;
+    padding: 10px;
+    background: #2a2a2a;
+    border-radius: 6px;
+}
+.state-panel {
+    width: 340px;
+    background: #2a2a2a;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    height: fit-content;
+}
+
+/* Matrix Display Styles */
+.matrix-container {
+    display: inline-block;
+    position: relative;
+    margin: 6px;
+    font-family: 'Courier New', monospace;
+}
+
+.matrix-brackets {
+    position: relative;
+    display: inline-block;
+}
+
+.matrix-brackets::before,
+.matrix-brackets::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    border: 2px solid #4af;
+    border-left: none;
+    border-right: none;
+}
+
+.matrix-brackets::before {
+    left: -10px;
+    border-left: 2px solid #4af;
+}
+
+.matrix-brackets::after {
+    right: -10px;
+    border-right: 2px solid #4af;
+}
+
+.matrix-grid {
+    display: grid;
+    gap: 4px 8px;
+    padding: 6px 10px;
+    align-items: center;
+    justify-items: center;
+}
+
+.matrix-2x2 { grid-template-columns: repeat(2, 1fr); }
+.matrix-2x6 { grid-template-columns: repeat(6, 1fr); }
+.matrix-6x2 { grid-template-columns: repeat(2, 1fr); }
+.matrix-6x6 { grid-template-columns: repeat(6, 1fr); }
+
+.matrix-cell {
+    font-size: 9px;
+    font-family: 'Courier New', monospace;
+    color: #0ff;
+    text-align: center;
+    min-width: 38px;
+    white-space: nowrap;
+}
+
+.matrix-cell.inactive {
+    color: #666;
+}
+
+.matrix-title {
+    color: #4af;
+    font-size: 13px;
+    margin-bottom: 5px;
+    text-align: center;
+    font-family: Arial, sans-serif;
+}
+
+.matrices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 18px;
+    margin-top: 10px;
+}
+
+.matrix-display {
+    text-align: center;
+    background: #1a1a1a;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.state-section {
+    margin-bottom: 12px;
+}
+.state-section h3 {
+    color: #4af;
+    margin: 0 0 6px 0;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    cursor: help;
+}
+.state-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 2px 0;
+}
+.state-label {
+    color: #aaa;
+    cursor: help;
+}
+.state-value {
+    color: #0ff;
+    text-align: right;
+}
+.state-value.inactive {
+    color: #666;
+}
+.slider-container label {
+    cursor: help;
+}
+.slider-container {
+    margin: 8px 0;
+}
+.slider-container label {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 2px;
+    width: 100%;
+}
+
+.dropdown-container {
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.dropdown-container label {
+    font-size: 11px;
+    white-space: nowrap;
+    min-width: 90px;
+    flex-shrink: 0;
+}
+input[type="range"] {
+    width: 180px;
+    vertical-align: middle;
+}
+.dropdown-container select {
+    flex: 1;
+    padding: 4px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 4px;
+    min-width: 160px;
+}
+.value {
+    display: inline-block;
+    width: 50px;
+    text-align: right;
+    color: #4af;
+    font-size: 11px;
+    margin-left: 8px;
+}
+button {
+    padding: 6px 12px;
+    margin: 3px;
+    background: #4af;
+    border: none;
+    border-radius: 4px;
+    color: #000;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 12px;
+}
+button:hover {
+    background: #6cf;
+}
+.toggle-section {
+    color: #4af;
+    cursor: pointer;
+    padding: 10px;
+    background: #333;
+    border-radius: 4px;
+    text-align: center;
+    margin: 15px 0;
+    user-select: none;
+}
+.toggle-section:hover {
+    background: #444;
+}
+.matrices-section {
+    display: none;
+    margin-top: 15px;
+}
+.matrices-section.visible {
+    display: block;
+}
+.equation-section {
+    margin: 8px 0;
+    padding: 6px 8px;
+    background: #1a1a1a;
+    border-radius: 3px;
+    border-left: 3px solid #4af;
+}
+.eq-label {
+    color: #4af;
+    font-weight: bold;
+    margin-bottom: 4px;
+    font-size: 11px;
+}
+.equation-line {
+    font-family: 'Courier New', monospace;
+    color: #0ff;
+    margin: 2px 0;
+    font-size: 11px;
+}
+
+/* Filter equations section styling - positioned below controls */
+.filter-equations {
+    margin-top: 12px;
+    padding: 10px;
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+    border: 1px solid #333;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.filter-equations .state-section {
+    margin: 0;
+    padding: 0;
+}
+
+.filter-equations .state-section h3 {
+    color: #4af;
+    font-size: 14px;
+    margin: 0 0 8px 0;
+    text-align: center;
+    border-bottom: 1px solid #333;
+    padding-bottom: 6px;
+}
+
+/* Variable symbols grid styling */
+.variables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    margin: 6px 0;
+    padding: 8px;
+}
+
+.variable-symbol {
+    font-family: 'Courier New', monospace;
+    color: #4af;
+    background: #0a0a0a;
+    padding: 4px 8px;
+    border-radius: 3px;
+    border: 1px solid #333;
+    cursor: help;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    min-width: 50px;
+}
+
+.variable-symbol:hover {
+    background: #1a1a1a;
+    border-color: #4af;
+}
+
+
+/* Responsive adjustment for smaller screens */
+@media (max-width: 500px) {
+    .variables-grid {
+        grid-template-columns: repeat(auto-fit, minmax(45px, 1fr));
+        gap: 6px;
+    }
+    
+    .variable-symbol:hover::after {
+        width: 200px;
+        font-size: 12px;
+    }
+}
+
+/* Canvas overlay controls */
+.canvas-controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: flex;
+    gap: 8px;
+    background: rgba(42, 42, 42, 0.9);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.canvas-controls button {
+    padding: 4px 8px;
+    margin: 0;
+    font-size: 11px;
+    min-width: auto;
+}
+
+/* Canvas overlay dropdowns */
+.canvas-dropdowns {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.canvas-dropdown-container {
+    position: relative;
+}
+
+/* Custom Dropdown Styles */
+.custom-dropdown {
+    position: relative;
+    min-width: 160px;
+    font-family: Arial, sans-serif;
+}
+
+.dropdown-selected {
+    background: rgba(26, 26, 26, 0.95);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    border: 1px solid #444;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.dropdown-selected:hover {
+    border-color: #4af;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+.dropdown-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(26, 26, 26, 0.98);
+    border: 1px solid #444;
+    border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    margin-top: 4px;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: all 0.2s ease;
+}
+
+.dropdown-open .dropdown-options {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+.dropdown-option {
+    padding: 10px 16px;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+}
+
+.dropdown-option:last-child {
+    border-bottom: none;
+}
+
+.dropdown-option:hover {
+    background: rgba(77, 171, 255, 0.2);
+    color: #4af;
+}
+
+.dropdown-option.selected {
+    background: rgba(77, 171, 255, 0.3);
+    color: #4af;
+    font-weight: bold;
+}
+
+.dropdown-closed .dropdown-options {
+    display: none;
+}
+
+/* Canvas overlay legend */
+.canvas-legend {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    background: rgba(42, 42, 42, 0.9);
+    padding: 8px 20px;
+    border-radius: 4px;
+    border: 1px solid #444;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    white-space: nowrap;
+}
+
+.canvas-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+}
+
+.canvas-legend .legend-color {
+    width: 12px;
+    height: 3px;
+}
