@@ -115,6 +115,7 @@ body {
 
 .matrix-cell {
     font-size: 9px;
+    font-family: 'Courier New', monospace;
     color: #0ff;
     text-align: center;
     min-width: 38px;

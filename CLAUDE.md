@@ -16,6 +16,30 @@ This is a Kalman filter educational and visualization project. The repository co
 
 The application is built with a modular structure separating concerns:
 
+### **CRITICAL ARCHITECTURAL PRINCIPLE: Filter Isolation**
+
+**🚨 MANDATORY RULE: Code outside the `scripts/filters/` directory MUST NEVER contain references to specific filter types (e.g., 'imm', 'kalman-2d', etc.).**
+
+**Why this matters:**
+- **Extensibility**: New filters can be added without modifying existing code
+- **Maintainability**: Changes to filter implementations don't break other components  
+- **Modularity**: Each filter is completely self-contained
+- **Registry Pattern**: All filter interaction goes through `FilterRegistry`
+
+**How to follow this rule:**
+- **✅ CORRECT**: Use `FilterRegistry.createFilter(filterType, config)` 
+- **❌ INCORRECT**: `if (filterType === 'imm') { /* specific behavior */ }`
+- **✅ CORRECT**: Filters provide their own UI configurations, plot data, legends
+- **❌ INCORRECT**: Hard-coding filter-specific UI or visualization logic
+
+**Enforcement:**
+- Visualization components must be completely generic
+- Controllers must work with any filter through the registry interface
+- UI components must be driven by filter-provided configurations
+- Error graphs, legends, and displays must use filter-supplied data structures
+
+This principle ensures the architecture remains scalable as new filtering algorithms are added.
+
 **HTML Structure (`index.html`)**:
 - Complete UI layout with controls, visualization canvases, and state displays
 - References external CSS and JavaScript files
@@ -44,6 +68,20 @@ The JavaScript is organized into a well-structured modular system with clear sep
 - `filter-base.js` - Common interface for all filtering algorithms
 - `kalman-filter-2d.js` - Standard 2D Kalman filter with constant acceleration model
 - `imm-filter.js` - Interactive Multiple Model filter (dual-model Kalman)
+
+**Generic Plotting Interface**: Filters can provide additional plot data for the error graph:
+```javascript
+// In filter's extractFilterData method:
+filterData.additionalPlotData = [
+    {
+        series: 'unique_name',    // Series identifier
+        value: numericValue,      // Y-axis value to plot
+        color: '#rgb',           // Line color
+        lineWidth: 2,            // Line thickness
+        alpha: 0.7               // Transparency
+    }
+];
+```
 
 **Visualization Components (`scripts/visualization/`)**:
 - `visualization-engine.js` - Main canvas visualization with zoom/pan/interaction

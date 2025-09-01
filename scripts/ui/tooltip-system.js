@@ -18,13 +18,13 @@ class TooltipSystem {
         this.tooltip.className = 'dynamic-tooltip';
         this.tooltip.style.cssText = `
             position: absolute;
-            background: #1a1a1a;
-            border: 1px solid #4af;
+            background: ${COLORS.BACKGROUND_DARK};
+            border: 1px solid ${COLORS.TEXT_ACCENT};
             border-radius: 4px;
             padding: 10px 14px;
             font-size: 13px;
             line-height: 1.4;
-            color: #fff;
+            color: ${COLORS.TEXT_PRIMARY};
             font-family: Arial, sans-serif;
             font-weight: normal;
             z-index: 1000;

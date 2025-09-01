@@ -141,7 +141,7 @@ class VisualizationEngine {
 
         // Ground truth trail
         this.ctx.globalAlpha = 0.3;
-        this.ctx.strokeStyle = '#0f0';
+        this.ctx.strokeStyle = COLORS.GROUND_TRUTH;
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
         for (let i = 0; i <= timeIndex && i < groundTruth.length; i++) {
@@ -182,7 +182,7 @@ class VisualizationEngine {
             this.ctx.fill();
 
             this.ctx.globalAlpha = a * 0.5;
-            this.ctx.fillStyle = '#0ff';
+            this.ctx.fillStyle = COLORS.ESTIMATES;
             this.ctx.beginPath();
             this.ctx.arc(est[0], est[1], 2 / this.scale, 0, 2 * Math.PI);
             this.ctx.fill();
@@ -195,7 +195,7 @@ class VisualizationEngine {
                 const age = currentTime - m.time;
                 const a = this.fadeAlphaFromAge(age);
                 this.ctx.globalAlpha = a;
-                this.ctx.fillStyle = '#f0f';
+                this.ctx.fillStyle = COLORS.MEASUREMENTS;
                 this.ctx.beginPath();
                 this.ctx.arc(m.pos[0], m.pos[1], 3 / this.scale, 0, 2 * Math.PI);
                 this.ctx.fill();
@@ -205,7 +205,7 @@ class VisualizationEngine {
         // Current markers
         this.ctx.globalAlpha = 1.0;
         if (timeIndex < groundTruth.length) {
-            this.ctx.fillStyle = '#0f0';
+            this.ctx.fillStyle = COLORS.GROUND_TRUTH;
             this.ctx.beginPath();
             this.ctx.arc(groundTruth[timeIndex][0], groundTruth[timeIndex][1], 6 / this.scale, 0, 2 * Math.PI);
             this.ctx.fill();
@@ -238,7 +238,7 @@ class VisualizationEngine {
                 this.ctx.fill();
 
                 this.ctx.globalAlpha = 1.0;
-                this.ctx.fillStyle = '#0ff';
+                this.ctx.fillStyle = COLORS.ESTIMATES;
                 this.ctx.beginPath();
                 this.ctx.arc(est[0], est[1], 6 / this.scale, 0, 2 * Math.PI);
                 this.ctx.fill();

@@ -70,7 +70,7 @@ class FilterUIManager {
 
         // Create filter state title
         const titleHtml = `
-            <h2 style="color: #4af; text-align: center; margin-top: 0; cursor: help;" 
+            <h2 style="color: ${COLORS.TEXT_ACCENT}; text-align: center; margin-top: 0; cursor: help;" 
                 data-tooltip="The ${config.filterName} waits for a few measurements to initialize, then fuses measurements with the motion model.">
                 Filter State
             </h2>

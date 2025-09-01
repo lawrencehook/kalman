@@ -34,7 +34,7 @@
         },
 
         // Extract filter-specific data
-        extractData: (filterInstance) => {
+        extractData: (filterInstance, context = {}) => {
             if (!filterInstance.initialized) {
                 return {};
             }
@@ -58,15 +58,63 @@
                 immData.modelEntropy = entropy;
             }
             
+            // Calculate individual model position errors for plotting
+            if (filterInstance.models && context.groundTruth) {
+                const groundTruth = context.groundTruth;
+                const plotData = [];
+                
+                // Model 0 error (smooth motion)
+                if (filterInstance.models[0] && filterInstance.models[0].initialized) {
+                    const model0Pos = filterInstance.models[0].getPosition();
+                    if (model0Pos) {
+                        const error0 = Math.sqrt(
+                            Math.pow(groundTruth[0] - model0Pos[0], 2) + 
+                            Math.pow(groundTruth[1] - model0Pos[1], 2)
+                        );
+                        plotData.push({
+                            series: 'model0_error',
+                            value: error0,
+                            color: COLORS.IMM_MODEL_0,
+                            lineWidth: 2,
+                            alpha: 0.7
+                        });
+                    }
+                }
+                
+                // Model 1 error (maneuvering motion)
+                if (filterInstance.models[1] && filterInstance.models[1].initialized) {
+                    const model1Pos = filterInstance.models[1].getPosition();
+                    if (model1Pos) {
+                        const error1 = Math.sqrt(
+                            Math.pow(groundTruth[0] - model1Pos[0], 2) + 
+                            Math.pow(groundTruth[1] - model1Pos[1], 2)
+                        );
+                        plotData.push({
+                            series: 'model1_error',
+                            value: error1,
+                            color: COLORS.IMM_MODEL_1,
+                            lineWidth: 2,
+                            alpha: 0.7
+                        });
+                    }
+                }
+                
+                if (plotData.length > 0) {
+                    immData.additionalPlotData = plotData;
+                }
+            }
+            
             return immData;
         },
 
         // Provide error graph legend configuration
         getErrorGraphLegend: () => {
             return [
-                { color: '#f44', width: 12, height: 2, label: 'Actual Error' },
-                { color: '#fa4', width: 12, height: 2, label: '95% Confidence' },
-                { color: '#4af', width: 2, height: 12, label: 'Current Time' }
+                { color: COLORS.ERROR_ACTUAL, width: 12, height: 2, label: 'Combined Error' },
+                { color: COLORS.CONFIDENCE_BOUNDS, width: 12, height: 2, label: '95% Confidence' },
+                { color: COLORS.CURRENT_TIME, width: 2, height: 12, label: 'Current Time' },
+                { color: COLORS.IMM_MODEL_0, width: 12, height: 2, label: 'Model 0 Error (Smooth)' },
+                { color: COLORS.IMM_MODEL_1, width: 12, height: 2, label: 'Model 1 Error (Maneuver)' }
             ];
         },
 

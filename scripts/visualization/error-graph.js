@@ -39,6 +39,19 @@ class ErrorGraphVisualization {
             }
         });
         
+        // Check if any filter states contain additional plottable data
+        if (filterStates) {
+            filterStates.forEach(state => {
+                if (state && state.additionalPlotData) {
+                    state.additionalPlotData.forEach(plotData => {
+                        if (plotData.value != null && Number.isFinite(plotData.value)) {
+                            maxError = Math.max(maxError, plotData.value);
+                        }
+                    });
+                }
+            });
+        }
+        
         // Use adaptive scaling with a small minimum to avoid zero scale  
         maxError = Math.max(maxError, 0.1); // Minimum scale of 0.1 pixel
         
@@ -48,7 +61,7 @@ class ErrorGraphVisualization {
         console.log('Error graph max value:', maxError); // Debug log
 
         // Draw axes
-        this.ctx.strokeStyle = '#666';
+        this.ctx.strokeStyle = COLORS.AXES;
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
         // Y axis
@@ -59,7 +72,7 @@ class ErrorGraphVisualization {
         this.ctx.stroke();
 
         // Y axis labels
-        this.ctx.fillStyle = '#aaa';
+        this.ctx.fillStyle = COLORS.TEXT_SECONDARY;
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'right';
         this.ctx.textBaseline = 'middle';
@@ -73,7 +86,7 @@ class ErrorGraphVisualization {
 
             // Grid lines
             if (i > 0) {
-                this.ctx.strokeStyle = '#333';
+                this.ctx.strokeStyle = COLORS.GRID_MAJOR;
                 this.ctx.lineWidth = 0.5;
                 this.ctx.beginPath();
                 this.ctx.moveTo(plotLeft, y);
@@ -93,7 +106,7 @@ class ErrorGraphVisualization {
 
             // Grid lines
             if (i > 0) {
-                this.ctx.strokeStyle = '#333';
+                this.ctx.strokeStyle = COLORS.GRID_MAJOR;
                 this.ctx.lineWidth = 0.5;
                 this.ctx.beginPath();
                 this.ctx.moveTo(x, plotTop);
@@ -103,7 +116,7 @@ class ErrorGraphVisualization {
         }
 
         // Time axis label - moved to far left
-        this.ctx.fillStyle = '#4af';
+        this.ctx.fillStyle = COLORS.TEXT_ACCENT;
         this.ctx.font = '14px Arial';
         this.ctx.textAlign = 'left';
         this.ctx.fillText('Time (seconds)', plotLeft, this.canvas.height - 15);
@@ -115,7 +128,7 @@ class ErrorGraphVisualization {
         this.ctx.restore();
 
         // Draw zones where actual error exceeds confidence bound
-        this.ctx.fillStyle = 'rgba(255, 100, 100, 0.2)'; // Light red background
+        this.ctx.fillStyle = 'rgba(255, 68, 68, 0.2)'; // Light red background
         for (let i = 0; i < errorHistory.length - 1; i++) {
             const err = errorHistory[i];
             const conf = confidenceHistory[i];
@@ -140,7 +153,7 @@ class ErrorGraphVisualization {
         };
 
         // Draw confidence bound (95%) first (so it appears behind the error line)
-        this.ctx.strokeStyle = '#fa4';
+        this.ctx.strokeStyle = COLORS.CONFIDENCE_BOUNDS;
         this.ctx.lineWidth = 2;
         this.ctx.globalAlpha = 0.8;
         this.ctx.beginPath();
@@ -161,7 +174,7 @@ class ErrorGraphVisualization {
         this.ctx.stroke();
 
         // Draw actual error line
-        this.ctx.strokeStyle = '#f44';
+        this.ctx.strokeStyle = COLORS.ERROR_ACTUAL;
         this.ctx.lineWidth = 2;
         this.ctx.globalAlpha = 1.0;
         this.ctx.beginPath();
@@ -181,9 +194,59 @@ class ErrorGraphVisualization {
         }
         this.ctx.stroke();
 
+        // Draw additional filter-specific plot data if available
+        if (filterStates) {
+            // Group plot data by series
+            const plotSeries = {};
+            
+            filterStates.forEach((state, i) => {
+                if (state && state.additionalPlotData) {
+                    state.additionalPlotData.forEach(plotData => {
+                        const seriesKey = plotData.series || 'default';
+                        if (!plotSeries[seriesKey]) {
+                            plotSeries[seriesKey] = {
+                                points: [],
+                                color: plotData.color || COLORS.DEFAULT,
+                                lineWidth: plotData.lineWidth || 2,
+                                alpha: plotData.alpha || 0.7
+                            };
+                        }
+                        
+                        if (plotData.value != null && Number.isFinite(plotData.value)) {
+                            const t = i * dt;
+                            plotSeries[seriesKey].points.push({ t, value: plotData.value });
+                        }
+                    });
+                }
+            });
+            
+            // Draw each series
+            Object.values(plotSeries).forEach(series => {
+                if (series.points.length > 0) {
+                    this.ctx.strokeStyle = series.color;
+                    this.ctx.lineWidth = series.lineWidth;
+                    this.ctx.globalAlpha = series.alpha;
+                    this.ctx.beginPath();
+                    
+                    let firstPoint = true;
+                    series.points.forEach(point => {
+                        const [x, y] = dataToCanvas(point.t, point.value);
+                        if (firstPoint) {
+                            this.ctx.moveTo(x, y);
+                            firstPoint = false;
+                        } else {
+                            this.ctx.lineTo(x, y);
+                        }
+                    });
+                    
+                    this.ctx.stroke();
+                }
+            });
+        }
+
         // Draw current time indicator
         const currentTimeX = plotLeft + (currentTime / maxTime) * plotWidth;
-        this.ctx.strokeStyle = '#4af';
+        this.ctx.strokeStyle = COLORS.CURRENT_TIME;
         this.ctx.lineWidth = 2;
         this.ctx.globalAlpha = 0.8;
         this.ctx.beginPath();
@@ -210,9 +273,9 @@ class ErrorGraphVisualization {
         } else {
             // Fallback to default legend
             legendItems = [
-                { color: '#f44', width: 12, height: 2, label: 'Actual Error' },
-                { color: '#fa4', width: 12, height: 2, label: '95% Confidence' },
-                { color: '#4af', width: 2, height: 12, label: 'Current Time' }
+                { color: COLORS.ERROR_ACTUAL, width: 12, height: 2, label: 'Actual Error' },
+                { color: COLORS.CONFIDENCE_BOUNDS, width: 12, height: 2, label: '95% Confidence' },
+                { color: COLORS.CURRENT_TIME, width: 2, height: 12, label: 'Current Time' }
             ];
         }
 
@@ -237,7 +300,7 @@ class ErrorGraphVisualization {
             this.ctx.fillRect(itemX, legendY - item.height / 2, item.width, item.height);
             
             // Draw label
-            this.ctx.fillStyle = '#fff';
+            this.ctx.fillStyle = COLORS.TEXT_PRIMARY;
             this.ctx.textAlign = 'left';
             this.ctx.fillText(item.label, itemX + item.width + 5, legendY);
         });
@@ -249,7 +312,7 @@ class ErrorGraphVisualization {
         const immTop = plotTop + plotHeight - immHeight;
         
         // Draw separator line
-        this.ctx.strokeStyle = '#666';
+        this.ctx.strokeStyle = COLORS.AXES;
         this.ctx.lineWidth = 1;
         this.ctx.globalAlpha = 0.5;
         this.ctx.beginPath();
@@ -265,7 +328,7 @@ class ErrorGraphVisualization {
         };
 
         // Draw model 0 (smooth) probability
-        this.ctx.strokeStyle = '#4f4';
+        this.ctx.strokeStyle = COLORS.SUCCESS;
         this.ctx.lineWidth = 2;
         this.ctx.globalAlpha = 0.8;
         this.ctx.beginPath();
@@ -287,7 +350,7 @@ class ErrorGraphVisualization {
         this.ctx.stroke();
 
         // Draw model 1 (maneuvering) probability
-        this.ctx.strokeStyle = '#f84';
+        this.ctx.strokeStyle = COLORS.WARNING;
         this.ctx.lineWidth = 2;
         this.ctx.globalAlpha = 0.8;
         this.ctx.beginPath();
@@ -309,7 +372,7 @@ class ErrorGraphVisualization {
         this.ctx.stroke();
 
         // Add IMM section labels
-        this.ctx.fillStyle = '#aaa';
+        this.ctx.fillStyle = COLORS.TEXT_SECONDARY;
         this.ctx.font = '10px Arial';
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
@@ -317,15 +380,15 @@ class ErrorGraphVisualization {
 
         // Add legend for model probabilities
         const legendY = immTop + 10;
-        this.ctx.fillStyle = '#4f4';
+        this.ctx.fillStyle = COLORS.SUCCESS;
         this.ctx.fillRect(plotLeft + 10, legendY, 12, 3);
-        this.ctx.fillStyle = '#aaa';
+        this.ctx.fillStyle = COLORS.TEXT_SECONDARY;
         this.ctx.font = '10px Arial';
         this.ctx.fillText('CA Low-Noise', plotLeft + 25, legendY + 2);
         
-        this.ctx.fillStyle = '#f84';
+        this.ctx.fillStyle = COLORS.WARNING;
         this.ctx.fillRect(plotLeft + 90, legendY, 12, 3);
-        this.ctx.fillStyle = '#aaa';
+        this.ctx.fillStyle = COLORS.TEXT_SECONDARY;
         this.ctx.fillText('CA High-Noise', plotLeft + 105, legendY + 2);
 
         // Mark model switches with vertical lines

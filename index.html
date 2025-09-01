@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Kalman Filter Visualization</title>
+    <title>Filter Visualization</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -38,7 +38,7 @@
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #0ff; width: 6px; height: 6px; border-radius: 3px;"></div>
-                        <span>Kalman Estimates</span>
+                        <span>Estimates</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background: rgba(0,255,255,0.3);"></div>
@@ -48,9 +48,9 @@
                 
                 <!-- Overlay Control Buttons -->
                 <div class="canvas-controls">
-                    <button id="playBtn">Play/Pause</button>
-                    <button id="stepBtn">Step</button>
-                    <button id="resetBtn">Reset</button>
+                    <button id="playBtn" title="Play/pause simulation (Space)">▶</button>
+                    <button id="stepBtn" title="Step forward one frame (→)">⏭</button>
+                    <button id="resetBtn" title="Reset simulation (R)">↻</button>
                 </div>
             </div>
 
@@ -109,6 +109,7 @@
     </div>
 
     <!-- Core utilities (no dependencies) -->
+    <script src="scripts/utils/constants.js"></script>
     <script src="scripts/utils/matrix-utils.js"></script>
     <script src="scripts/utils/noise-utils.js"></script>
 

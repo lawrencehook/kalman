@@ -86,9 +86,17 @@ class StateRenderer {
 
         let displayValue;
         if (typeof value === 'number') {
-            displayValue = isNaN(value) ? '--' : value.toFixed(precision);
+            if (isNaN(value)) {
+                displayValue = '--'.padStart(8);
+            } else if (Math.abs(value) < 1e-6 && value !== 0) {
+                // Very small numbers: use scientific notation with consistent width
+                displayValue = value.toExponential(1).padStart(8);
+            } else {
+                // All other numbers: use fixed decimal places with consistent width
+                displayValue = value.toFixed(3).padStart(8);
+            }
         } else {
-            displayValue = value || '--';
+            displayValue = (value || '--').toString().padStart(8);
         }
 
         element.textContent = displayValue;

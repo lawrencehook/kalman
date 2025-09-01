@@ -46,7 +46,7 @@ class MatrixRenderer {
         return `
             <div class="matrix-display">
                 <div class="matrix-title">${title}</div>
-                <div style="font-size: 9px; color: #888; margin-bottom: 8px;">${description}</div>
+                <div style="font-size: 9px; color: ${COLORS.TEXT_MUTED}; margin-bottom: 8px;">${description}</div>
                 <div class="matrix-container">
                     <div class="matrix-brackets">
                         <div id="${id}" class="matrix-grid ${matrixClass}"></div>
@@ -89,16 +89,16 @@ class MatrixRenderer {
                     const value = values[i][j];
                     let displayValue;
                     if (typeof value === 'number') {
-                        // Use the same formatting logic as the old system
-                        if (Math.abs(value) < 0.001 && value !== 0) {
-                            displayValue = value.toExponential(1);
-                        } else if (Math.abs(value) < 0.01) {
-                            displayValue = value.toFixed(4);
+                        // Normalize all numbers to consistent width formatting
+                        if (Math.abs(value) < 1e-6 && value !== 0) {
+                            // Very small numbers: use scientific notation with consistent width
+                            displayValue = value.toExponential(1).padStart(8);
                         } else {
-                            displayValue = value.toFixed(precision);
+                            // All other numbers: use fixed decimal places with consistent width
+                            displayValue = value.toFixed(3).padStart(8);
                         }
                     } else {
-                        displayValue = '--';
+                        displayValue = '--'.padStart(8);
                     }
                     cells[cellIndex].textContent = displayValue;
                     cellIndex++;

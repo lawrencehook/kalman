@@ -251,12 +251,13 @@ class SimulationController {
             // Extract filter-specific data using registry
             let filterSpecificData = {};
             try {
-                filterSpecificData = FilterRegistry.extractFilterData(this.filterType, this.filter);
+                const context = { groundTruth: truth };
+                filterSpecificData = FilterRegistry.extractFilterData(this.filterType, this.filter, context);
             } catch (error) {
                 console.warn('Filter data extraction failed:', error.message);
             }
 
-            this.filterStates.push({
+            const filterState = {
                 state: stateArray,
                 covariance: posCov2x2,
                 fullCovariance: fullP,
@@ -269,7 +270,14 @@ class SimulationController {
                 bootstrapNeeded: bootstrapNeeded,
                 coveragePct: coverageTotal > 0 ? (coverageHits / coverageTotal) : null,
                 filterSpecificData: filterSpecificData
-            });
+            };
+            
+            // Include additional plot data for error graph if provided by filter
+            if (filterSpecificData && filterSpecificData.additionalPlotData) {
+                filterState.additionalPlotData = filterSpecificData.additionalPlotData;
+            }
+            
+            this.filterStates.push(filterState);
         }
 
         // Update fixed, whole-duration coverage display in Controls
@@ -297,10 +305,21 @@ class SimulationController {
         this.draw();
     }
 
-    togglePlay() { this.playing = !this.playing; }
+    togglePlay() { 
+        this.playing = !this.playing; 
+        this.updatePlayButton();
+    }
+    
+    updatePlayButton() {
+        const playBtn = document.getElementById('playBtn');
+        if (playBtn) {
+            playBtn.textContent = this.playing ? '⏸' : '▶';
+        }
+    }
 
     step() {
         this.playing = false;
+        this.updatePlayButton();
         this.currentTime += this.config.dt;
         if (this.currentTime > this.config.maxTime) this.currentTime = 0;
         this.ui.updateTimeDisplay();
@@ -309,6 +328,7 @@ class SimulationController {
 
     stepBackward() {
         this.playing = false;
+        this.updatePlayButton();
         this.currentTime -= this.config.dt;
         if (this.currentTime < 0) this.currentTime = this.config.maxTime;
         this.draw();
@@ -316,6 +336,7 @@ class SimulationController {
 
     reset() {
         this.playing = false;
+        this.updatePlayButton();
         this.currentTime = 0;
         this.generateData();
         this.ui.updateTimeDisplay();

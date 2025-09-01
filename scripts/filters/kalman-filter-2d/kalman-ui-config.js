@@ -6,7 +6,7 @@
 class KalmanFilter2DUIConfig {
     static getConfig() {
         return {
-            filterName: "Kalman Filter 2D",
+            filterName: "2D Filter",
             
             // State vector configuration
             stateVector: {

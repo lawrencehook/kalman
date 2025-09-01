@@ -82,14 +82,15 @@ class FilterRegistry {
      * Extract filter-specific data from filter instance
      * @param {string} filterKey - Filter identifier
      * @param {Object} filterInstance - The filter instance
+     * @param {Object} context - Additional context (ground truth, etc.)
      * @returns {Object} Filter-specific data
      */
-    static extractFilterData(filterKey, filterInstance) {
+    static extractFilterData(filterKey, filterInstance, context = {}) {
         const filterConfig = this.#filters.get(filterKey);
         if (!filterConfig || !filterConfig.extractData) {
             return {};
         }
-        return filterConfig.extractData(filterInstance);
+        return filterConfig.extractData(filterInstance, context);
     }
 
     /**
@@ -117,9 +118,9 @@ class FilterRegistry {
         if (!filterConfig || !filterConfig.getErrorGraphLegend) {
             // Return default legend if filter doesn't provide one
             return [
-                { color: '#f44', width: 12, height: 2, label: 'Actual Error' },
-                { color: '#fa4', width: 12, height: 2, label: '95% Confidence' },
-                { color: '#4af', width: 2, height: 12, label: 'Current Time' }
+                { color: COLORS.ERROR_ACTUAL, width: 12, height: 2, label: 'Actual Error' },
+                { color: COLORS.CONFIDENCE_BOUNDS, width: 12, height: 2, label: '95% Confidence' },
+                { color: COLORS.CURRENT_TIME, width: 2, height: 12, label: 'Current Time' }
             ];
         }
         return filterConfig.getErrorGraphLegend();
