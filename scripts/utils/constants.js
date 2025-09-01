@@ -36,6 +36,8 @@ const COLORS = {
     // Filter-specific colors
     IMM_MODEL_0: '#0f0',            // Green (smooth model)
     IMM_MODEL_1: '#f0f',            // Magenta (maneuver model)
+    IMM_INNOVATION_0: '#00cc66',    // Distinct green (smooth model innovation)
+    IMM_INNOVATION_1: '#cc6600',    // Distinct orange (maneuver model innovation)
     
     // Grid and axes
     GRID_MAJOR: '#333',
