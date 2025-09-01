@@ -9,6 +9,7 @@ class FilterUIManager {
         this.statePanelContainer = null;
         this.systemMatricesContainer = null;
         this.equationsContainer = null;
+        this.stateDisplayEngine = null;
     }
 
     /**
@@ -19,6 +20,7 @@ class FilterUIManager {
         this.systemMatricesContainer = document.querySelector('.system-matrices') || 
             this.createSystemMatricesContainer();
         this.equationsContainer = document.querySelector('.filter-equations');
+        this.stateDisplayEngine = new StateDisplayEngine();
     }
 
     /**
@@ -40,6 +42,11 @@ class FilterUIManager {
         this.generateStatePanel(config);
         this.generateSystemMatricesSection(config);
         this.generateEquationsSection(config);
+        
+        // Reset timeline initialization after UI regeneration
+        if (this.stateDisplayEngine) {
+            this.stateDisplayEngine.initialized = false;
+        }
         
         // Re-setup event handlers after generating new UI
         if (this.matrixToggleCallback) {
@@ -75,8 +82,8 @@ class FilterUIManager {
                 Filter State
             </h2>
             
-            <div id="measurementStatus" class="measurement-indicator bootstrapping">
-                Bootstrapping (0/3)
+            <div id="measurementTimeline" class="measurement-timeline">
+                <!-- Timeline circles will be generated dynamically -->
             </div>
         `;
 
@@ -250,6 +257,23 @@ class FilterUIManager {
                 }
             });
         }
+
+        // Update timeline display via StateDisplayEngine
+        if (this.stateDisplayEngine) {
+            console.log('Full filterState object:', filterState);
+            console.log('FilterUIManager passing to timeline:', {
+                initialized: filterState.initialized,
+                hadMeasurement: filterState.hadMeasurement,
+                bootstrapCount: filterState.bootstrapCount,
+                bootstrapNeeded: filterState.bootstrapNeeded
+            });
+            this.stateDisplayEngine.updateTimeline(
+                filterState.initialized, 
+                filterState.hadMeasurement, 
+                filterState.bootstrapCount, 
+                filterState.bootstrapNeeded
+            );
+        }
     }
 
     /**
@@ -267,27 +291,8 @@ class FilterUIManager {
 
         StateRenderer.setInactiveState(allElementIds, isBootstrapping);
 
-        // Update measurement status
-        const statusElement = document.getElementById('measurementStatus');
-        if (statusElement) {
-            if (isBootstrapping) {
-                statusElement.className = 'measurement-indicator bootstrapping';
-            } else {
-                statusElement.className = 'measurement-indicator';
-            }
-        }
+        // Timeline is now managed by StateDisplayEngine
     }
 
-    /**
-     * Update measurement status display
-     * @param {string} status - Status text to display
-     * @param {string} className - CSS class for styling
-     */
-    updateMeasurementStatus(status, className = 'measurement-indicator') {
-        const statusElement = document.getElementById('measurementStatus');
-        if (statusElement) {
-            statusElement.textContent = status;
-            statusElement.className = className;
-        }
-    }
+    // updateMeasurementStatus method removed - timeline now managed by StateDisplayEngine
 }

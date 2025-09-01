@@ -393,7 +393,12 @@ class SimulationController {
                 positionCovariance: filterState.covariance,
                 innovation: filterState.innovation ? filterState.innovation.map(val => [val]) : null, // Convert to column vector format  
                 kalmanGain: filterState.kalmanGain,
-                systemMatrices: systemMatrices
+                systemMatrices: systemMatrices,
+                // Add timeline-required fields
+                hadMeasurement: filterState.hadMeasurement,
+                initialized: filterState.initialized,
+                bootstrapCount: filterState.bootstrapCount,
+                bootstrapNeeded: filterState.bootstrapNeeded
             };
             
             // Calculate error metrics
@@ -427,13 +432,7 @@ class SimulationController {
             this.filterUIManager.updateDisplay(formattedFilterState, additionalData);
             
             // Update measurement status
-            if (!filterState.initialized) {
-                this.filterUIManager.updateMeasurementStatus(`Bootstrapping (${filterState.bootstrapCount}/${filterState.bootstrapNeeded})`, 'measurement-indicator bootstrapping');
-            } else if (filterState.hadMeasurement) {
-                this.filterUIManager.updateMeasurementStatus('Measurement Update', 'measurement-indicator');
-            } else {
-                this.filterUIManager.updateMeasurementStatus('Prediction Only', 'measurement-indicator no-measurement');
-            }
+            // Timeline is now updated directly in StateDisplayEngine.updateDisplay()
         }
     }
 

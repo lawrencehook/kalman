@@ -3,11 +3,20 @@
 // ================================
 
 class StateDisplayEngine {
-    constructor() { this.elements = this.cacheElements(); }
+    constructor() { 
+        this.elements = {};
+        this.timeline = [];
+        this.maxTimelineLength = 15;
+        this.initialized = false;
+        this.updateCount = 0;
+    }
 
     cacheElements() {
+        const timelineElement = document.getElementById('measurementTimeline');
+        console.log('cacheElements: measurementTimeline =', timelineElement);
+        
         return {
-            measurementStatus: document.getElementById('measurementStatus'),
+            measurementTimeline: timelineElement,
             stateX: document.getElementById('state-x'),
             stateY: document.getElementById('state-y'),
             stateVx: document.getElementById('state-vx'),
@@ -49,32 +58,35 @@ class StateDisplayEngine {
     }
 
     updateDisplay(filterState, groundTruth, systemMatrices, showMatrices) {
+        console.log('StateDisplayEngine.updateDisplay called with:', filterState);
+        
+        // Initialize timeline on first call (after DOM is ready)
+        if (!this.initialized) {
+            console.log('Initializing StateDisplayEngine for first time');
+            this.elements = this.cacheElements();
+            this.initializeTimeline();
+            this.initialized = true;
+        }
+
         const { state, covariance, innovation, kalmanGain, innovationCovariance, hadMeasurement, initialized, bootstrapCount, bootstrapNeeded } = filterState;
 
-        // Measurement/Status banner
-        if (!initialized) {
-            this.elements.measurementStatus.textContent = `Bootstrapping (${bootstrapCount}/${bootstrapNeeded})`;
-            this.elements.measurementStatus.className = 'measurement-indicator bootstrapping';
-        } else if (hadMeasurement) {
-            this.elements.measurementStatus.textContent = 'Measurement Update';
-            this.elements.measurementStatus.className = 'measurement-indicator';
-        } else {
-            this.elements.measurementStatus.textContent = 'Prediction Only';
-            this.elements.measurementStatus.className = 'measurement-indicator no-measurement';
-        }
+        // Update timeline with current state
+        console.log('About to update timeline:', { initialized, hadMeasurement, bootstrapCount, bootstrapNeeded });
+        this.updateTimeline(initialized, hadMeasurement, bootstrapCount, bootstrapNeeded);
 
         // State vector
         const setVal = (el, val) => {
+            if (!el) return; // Skip if element doesn't exist
             if (val === null || val === undefined) { el.textContent = '--'; el.classList.add('inactive'); }
             else { el.textContent = val.toFixed(2); el.classList.remove('inactive'); }
         };
 
         if (!initialized || !state) {
             [this.elements.stateX, this.elements.stateY, this.elements.stateVx, this.elements.stateVy, this.elements.stateAx, this.elements.stateAy].forEach(el => {
-                el.textContent = '--'; el.classList.add('inactive');
+                if (el) { el.textContent = '--'; el.classList.add('inactive'); }
             });
             [this.elements.p00, this.elements.p01, this.elements.p10, this.elements.p11, this.elements.posError, this.elements.stdX, this.elements.stdY].forEach(el => {
-                el.textContent = '--'; el.classList.add('inactive');
+                if (el) { el.textContent = '--'; el.classList.add('inactive'); }
             });
             // Innovation / gain placeholders
             this.updateInnovationAndGain(null, null, true);
@@ -123,27 +135,138 @@ class StateDisplayEngine {
 
     updateInnovationAndGain(innovation, kalmanGain, inactive) {
         if (innovation) {
-            this.elements.innovationX.textContent = innovation[0].toFixed(2);
-            this.elements.innovationY.textContent = innovation[1].toFixed(2);
-            if (inactive) { this.elements.innovationX.classList.add('inactive'); this.elements.innovationY.classList.add('inactive'); }
-            else { this.elements.innovationX.classList.remove('inactive'); this.elements.innovationY.classList.remove('inactive'); }
+            if (this.elements.innovationX) {
+                this.elements.innovationX.textContent = innovation[0].toFixed(2);
+                if (inactive) this.elements.innovationX.classList.add('inactive'); 
+                else this.elements.innovationX.classList.remove('inactive');
+            }
+            if (this.elements.innovationY) {
+                this.elements.innovationY.textContent = innovation[1].toFixed(2);
+                if (inactive) this.elements.innovationY.classList.add('inactive'); 
+                else this.elements.innovationY.classList.remove('inactive');
+            }
         } else {
-            this.elements.innovationX.textContent = '--';
-            this.elements.innovationY.textContent = '--';
-            this.elements.innovationX.classList.add('inactive');
-            this.elements.innovationY.classList.add('inactive');
+            if (this.elements.innovationX) {
+                this.elements.innovationX.textContent = '--';
+                this.elements.innovationX.classList.add('inactive');
+            }
+            if (this.elements.innovationY) {
+                this.elements.innovationY.textContent = '--';
+                this.elements.innovationY.classList.add('inactive');
+            }
         }
 
         if (kalmanGain) {
             this.elements.kalmanGainElements.forEach(({ element }, index) => {
+                if (!element) return;
                 const row = Math.floor(index / 2), col = index % 2;
                 element.textContent = kalmanGain[row][col].toFixed(3);
                 if (inactive) element.classList.add('inactive'); else element.classList.remove('inactive');
             });
         } else {
             this.elements.kalmanGainElements.forEach(({ element }) => {
-                element.textContent = '--'; element.classList.add('inactive');
+                if (element) {
+                    element.textContent = '--'; 
+                    element.classList.add('inactive');
+                }
             });
         }
+    }
+
+    initializeTimeline() {
+        console.log('initializeTimeline called');
+        console.log('measurementTimeline element:', this.elements.measurementTimeline);
+        
+        if (!this.elements.measurementTimeline) {
+            console.warn('measurementTimeline element not found!');
+            return;
+        }
+        
+        // Create 15 circles initially filled with gray (no data)
+        this.elements.measurementTimeline.innerHTML = '';
+        console.log('Creating', this.maxTimelineLength, 'circles');
+        
+        for (let i = 0; i < this.maxTimelineLength; i++) {
+            const circle = document.createElement('div');
+            circle.className = 'timeline-circle';
+            circle.dataset.index = i;
+            circle.style.backgroundColor = '#666'; // Gray for no data
+            circle.title = 'No data yet';
+            this.elements.measurementTimeline.appendChild(circle);
+        }
+        
+        console.log('Timeline initialized with', this.elements.measurementTimeline.children.length, 'circles');
+        
+        // Initialize timeline state array with individual objects
+        this.timeline = Array.from({ length: this.maxTimelineLength }, () => ({ type: 'none', tooltip: 'No data yet' }));
+    }
+
+    updateTimeline(initialized, hadMeasurement, bootstrapCount, bootstrapNeeded) {
+        this.updateCount++;
+        console.log(`StateDisplayEngine.updateTimeline #${this.updateCount} called with:`, { initialized, hadMeasurement, bootstrapCount, bootstrapNeeded });
+        
+        // Initialize timeline on first call (after DOM is ready)
+        if (!this.initialized) {
+            console.log('Initializing StateDisplayEngine timeline for first time');
+            this.elements = this.cacheElements();
+            this.initializeTimeline();
+            this.initialized = true;
+        }
+
+        if (!this.elements.measurementTimeline) return;
+        
+        // Determine current state
+        let currentState;
+        if (!initialized) {
+            const bCount = bootstrapCount || 0;
+            const bNeeded = bootstrapNeeded || 3;
+            console.log(`Filter not initialized - bootstrapping (${bCount}/${bNeeded})`);
+            currentState = {
+                type: 'bootstrapping',
+                tooltip: `Bootstrapping (${bCount}/${bNeeded})`,
+                color: '#f84' // Direct color value for warning/orange
+            };
+        } else if (hadMeasurement) {
+            console.log('Filter initialized with measurement update');
+            currentState = {
+                type: 'measurement',
+                tooltip: 'Measurement Update',
+                color: '#4f4' // Direct color value for success/green
+            };
+        } else {
+            console.log('Filter initialized with prediction only');
+            currentState = {
+                type: 'prediction',
+                tooltip: 'Prediction Only', 
+                color: '#f44' // Direct color value for error/red
+            };
+        }
+        
+        console.log('Timeline update:', currentState.type, 'color:', currentState.color);
+        console.log('Current state values:', { initialized, hadMeasurement, bootstrapCount, bootstrapNeeded });
+        
+        // Add new state to timeline (shift left, add right)
+        this.timeline.shift();
+        this.timeline.push(currentState);
+        
+        // Update visual circles
+        const circles = this.elements.measurementTimeline.querySelectorAll('.timeline-circle');
+        console.log('Found', circles.length, 'circles to update');
+        
+        circles.forEach((circle, index) => {
+            const state = this.timeline[index];
+            console.log(`Circle ${index}:`, state);
+            
+            if (state && state.type === 'none') {
+                circle.style.setProperty('background-color', '#666', 'important');
+                circle.title = state.tooltip;
+            } else if (state) {
+                circle.style.setProperty('background-color', state.color, 'important');
+                circle.title = state.tooltip;
+                console.log(`Set circle ${index} to color:`, state.color);
+            }
+        });
+        
+        console.log('Updated', circles.length, 'circles');
     }
 }
