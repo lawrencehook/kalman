@@ -122,8 +122,9 @@ class ErrorGraphVisualization {
         this.ctx.fillText('Time (seconds)', plotLeft, this.canvas.height - 15);
 
         this.ctx.save();
-        this.ctx.translate(15, plotTop + plotHeight / 2);
+        this.ctx.translate(27, plotTop + plotHeight / 2); // Moved 7px further from edge
         this.ctx.rotate(-Math.PI / 2);
+        this.ctx.textAlign = 'center';
         this.ctx.fillText('Position Error (pixels)', 0, 0);
         this.ctx.restore();
 
@@ -281,29 +282,47 @@ class ErrorGraphVisualization {
 
         // Position legend horizontally at bottom of plot area
         // Calculate available space after "Time (seconds)" label
-        const timeTextWidth = this.ctx.measureText('Time (seconds)').width + 20; // Add padding
+        const timeTextWidth = this.ctx.measureText('Time (seconds)').width + 30; // Add more padding
         const legendStartX = plotLeft + timeTextWidth;
-        const availableWidth = plotWidth - timeTextWidth;
+        const availableWidth = plotWidth - timeTextWidth - 20; // Reserve space at right edge
         const legendY = this.canvas.height - 15; // Same y position as time label
         
-        // Calculate spacing for horizontal layout
-        const itemSpacing = availableWidth / legendItems.length;
-        
-        this.ctx.font = '11px Arial';
+        this.ctx.font = '10px Arial'; // Slightly smaller font
         this.ctx.textBaseline = 'middle';
         
-        legendItems.forEach((item, index) => {
-            const itemX = legendStartX + (index * itemSpacing);
+        // Calculate total width needed for all legend items
+        let totalItemWidth = 0;
+        const itemWidths = [];
+        legendItems.forEach((item) => {
+            const textWidth = this.ctx.measureText(item.label).width;
+            const itemWidth = item.width + 5 + textWidth + 15; // icon + gap + text + spacing
+            itemWidths.push(itemWidth);
+            totalItemWidth += itemWidth;
+        });
+        
+        // Use horizontal layout with maximum 2 rows
+        const maxItemsPerRow = Math.ceil(legendItems.length / 2); // Split into at most 2 rows
+        const rowHeight = 12;
+        const baseY = this.canvas.height - 30; // Start higher to accommodate 2 rows
+        
+        for (let i = 0; i < legendItems.length; i++) {
+            const item = legendItems[i];
+            const row = Math.floor(i / maxItemsPerRow);
+            const col = i % maxItemsPerRow;
+            
+            // Calculate position for this item
+            const itemY = baseY + (row * rowHeight);
+            const itemX = legendStartX + (col * (availableWidth / maxItemsPerRow));
             
             // Draw color indicator
             this.ctx.fillStyle = item.color;
-            this.ctx.fillRect(itemX, legendY - item.height / 2, item.width, item.height);
+            this.ctx.fillRect(itemX, itemY - item.height / 2, item.width, item.height);
             
             // Draw label
             this.ctx.fillStyle = COLORS.TEXT_PRIMARY;
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(item.label, itemX + item.width + 5, legendY);
-        });
+            this.ctx.fillText(item.label, itemX + item.width + 5, itemY);
+        }
     }
 
     drawModelProbabilities(filterStates, plotLeft, plotTop, plotWidth, plotHeight, maxTime, dt) {
