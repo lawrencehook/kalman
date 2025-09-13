@@ -16,7 +16,7 @@ class SineTrajectory {
             amplitude = 50,          // Wave amplitude
             frequency = 1.0,         // Hz
             direction = 'horizontal', // 'horizontal', 'vertical', or 'both'
-            centerX = 0,
+            centerX = -300,          // Start much further left to keep trajectory on screen
             centerY = 0,
             speed = 30,              // Forward speed for horizontal waves
             duration = 10.0,

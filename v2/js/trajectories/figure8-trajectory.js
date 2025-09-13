@@ -13,7 +13,7 @@ class Figure8Trajectory {
      */
     static generate(config = {}) {
         const {
-            scale = 50,           // Overall size scaling
+            scale = 150,          // Overall size scaling - increased for more space usage
             centerX = 0,
             centerY = 0,
             speed = 2.0,          // Speed factor (cycles per duration)
