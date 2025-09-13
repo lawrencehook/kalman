@@ -24,13 +24,19 @@ class MeasurementGenerator {
         const {
             measurementNoise = 5.0,    // Standard deviation of measurement noise
             processNoise = 1.0,        // Process noise for filter config
+            estimateRatio = 1.0,       // Estimates per measurement
             dt = null                  // Optional fixed timestep
         } = config;
 
         const measurements = [];
 
-        // Generate 1 measurement for every ground truth point
-        for (let i = 0; i < trajectoryPoints.length; i++) {
+        // Tick-based measurement generation based on ratio
+        // Ratio < 1: measurements every tick (dense), estimates every N ticks (sparse)
+        // Ratio >= 1: measurements every N ticks (sparse), estimates every tick (dense)
+
+        const measurementInterval = estimateRatio >= 1 ? Math.round(estimateRatio) : 1;
+
+        for (let i = 0; i < trajectoryPoints.length; i += measurementInterval) {
             const truthPoint = trajectoryPoints[i];
 
             // Add noise to position
@@ -53,7 +59,9 @@ class MeasurementGenerator {
             measurements: measurements,
             config: {
                 processNoise: processNoise,
-                measurementNoise: measurementNoise  // Default if not specified per measurement
+                measurementNoise: measurementNoise,  // Default if not specified per measurement
+                estimateRatio: estimateRatio,        // Pass ratio to filter
+                trajectoryPoints: trajectoryPoints  // Pass full trajectory for time reference
             }
         };
 

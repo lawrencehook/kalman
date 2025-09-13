@@ -3,63 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalman Filter V2 - Schema-Driven Architecture</title>
+    <title>Filtering demo</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: monospace;
-            margin: 20px;
-            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
         }
 
         canvas {
-            border: 1px solid #ccc;
-            background: white;
-            display: block;
-            margin: 10px 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: #1a1a1a;
+            z-index: 1;
         }
 
         #controls {
-            background: white;
-            padding: 10px;
-            border: 1px solid #ccc;
-            margin-bottom: 10px;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: rgba(40, 40, 40, 0.05);
+            border: 1px solid rgba(85, 85, 85, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            color: white;
+            min-width: 420px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
         }
 
         #controls label {
-            margin: 0 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .control-buttons {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(85, 85, 85, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .time-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .time-container span {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 60px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        #legend {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(40, 40, 40, 0.05);
+            border: 1px solid rgba(85, 85, 85, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            min-width: 200px;
+        }
+
+        #errorChart {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(40, 40, 40, 0.05);
+            border: 1px solid rgba(85, 85, 85, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            min-width: 250px;
+            min-height: 140px;
+        }
+
+        .custom-dropdown {
+            position: relative;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            min-width: 80px;
+            user-select: none;
+        }
+
+        .custom-dropdown:hover {
+            border-color: #667eea;
+        }
+
+        .dropdown-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            display: none;
+            z-index: 20;
+        }
+
+        .dropdown-options div {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dropdown-options div:hover {
+            background: #3a3a3a;
+        }
+
+        .custom-dropdown.open .dropdown-options {
+            display: block;
         }
 
         button {
-            padding: 5px 10px;
-            margin: 0 5px;
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        .status {
-            background: #e8f4f8;
-            padding: 10px;
-            margin: 10px 0;
-            border-left: 4px solid #0066cc;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin: 2px 4px 2px 0;
+            color: white;
             font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        input[type="range"] {
+            width: 120px;
+            accent-color: #667eea;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select {
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: white;
+            margin: 0 8px;
+            font-size: 13px;
+        }
+
+        select option {
+            background: #2a2a2a;
+        }
+
+        span {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 40px;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
-    <h1>V2 Schema-Driven Kalman Filter</h1>
-
-    <div class="status">
-        <strong>Status:</strong> Open browser console to see validation and pipeline logs
-    </div>
-
     <!-- Canvas and controls will be created by App.js -->
 
     <!-- Core V2 Components -->
     <script src="js/schema-validator.js"></script>
-    <script src="js/trajectories/data-generator.js"></script>
+
+    <!-- Trajectory System -->
+    <script src="js/trajectories/trajectory-registry.js"></script>
+    <script src="js/trajectories/line-trajectory.js"></script>
+    <script src="js/trajectories/circle-trajectory.js"></script>
+    <script src="js/trajectories/trajectory-init.js"></script>
+
     <script src="js/measurements/measurement-generator.js"></script>
     <script src="js/filters/ca-filter.js"></script>
     <script src="js/app.js"></script>

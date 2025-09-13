@@ -45,6 +45,25 @@
           "type": "number",
           "optional": true,
           "description": "Default measurement noise (if not specified per measurement)"
+        },
+        "estimateRatio": {
+          "type": "number",
+          "optional": true,
+          "description": "Estimates per measurement ratio (0.1 to 10.0)"
+        },
+        "trajectoryPoints": {
+          "type": "array",
+          "optional": true,
+          "elementType": {
+            "type": "object",
+            "required": ["time", "position"],
+            "properties": {
+              "time": {"type": "number", "description": "Ground truth timestamp"},
+              "position": {"type": "array", "length": 2, "elementType": "number", "description": "Ground truth position [x, y]"},
+              "velocity": {"type": "array", "length": 2, "elementType": "number", "optional": true, "description": "Ground truth velocity [vx, vy]"}
+            }
+          },
+          "description": "Full ground truth trajectory for timing reference"
         }
       }
     }

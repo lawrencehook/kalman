@@ -65,7 +65,7 @@ class CAFilter {
      */
     static process(filterInput) {
         const { measurements, config } = filterInput;
-        const { processNoise, measurementNoise, dt } = config;
+        const { processNoise, measurementNoise, dt, estimateRatio, trajectoryPoints } = config;
 
         // Default parameters
         const defaultDt = dt || 0.1;
@@ -73,8 +73,8 @@ class CAFilter {
         const q = processNoise || 1.0;
 
         // Wait for at least 3 measurements to estimate initial velocity and acceleration
-        const initMeasurements = Math.min(5, measurements.length);
-        let state, startIndex;
+        const minMeasurementsNeeded = Math.min(5, measurements.length);
+        let state, bootstrapTime;
 
         if (measurements.length < 3) {
             // Fallback to simple initialization if too few measurements
@@ -86,12 +86,12 @@ class CAFilter {
                 [0],                            // ax
                 [0]                             // ay
             ];
-            startIndex = 0;
+            bootstrapTime = measurements[0].time;
         } else {
-            // Estimate initial velocity and acceleration from first few measurements
+            // Use actual measurements available, not theoretical count
             const p1 = measurements[0];
-            const p2 = measurements[Math.floor(initMeasurements / 2)];
-            const p3 = measurements[initMeasurements - 1];
+            const p2 = measurements[Math.floor(minMeasurementsNeeded / 2)];
+            const p3 = measurements[minMeasurementsNeeded - 1];
 
             const dt1 = p2.time - p1.time;
             const dt2 = p3.time - p2.time;
@@ -115,7 +115,7 @@ class CAFilter {
                 [ax],               // ax
                 [ay]                // ay
             ];
-            startIndex = initMeasurements - 1;
+            bootstrapTime = p3.time; // Filter starts estimating AFTER this time
         }
 
         // Initial covariance (6x6 for CA model)
@@ -171,21 +171,42 @@ class CAFilter {
 
         const estimates = [];
 
-        // Add estimates for initialization period (before filter starts)
-        for (let i = 0; i < startIndex; i++) {
-            const measurement = measurements[i];
-            estimates.push({
-                time: measurement.time,
-                position: [measurement.position[0], measurement.position[1]], // Use raw measurements
-                covariance: [[100, 0], [0, 100]] // High uncertainty
-            });
+        // Don't emit estimates during bootstrap period - filter is still initializing
+        // Tick-based processing: fixed 0.1s ticks, measurements and estimates on different schedules
+        if (!trajectoryPoints || trajectoryPoints.length === 0) {
+            return { estimates };
         }
 
-        // Process remaining measurements through filter
-        for (let i = startIndex; i < measurements.length; i++) {
-            const measurement = measurements[i];
+        // Start processing AFTER bootstrap period
+        const startTime = bootstrapTime + defaultDt; // Start one tick after initialization
+        const endTime = trajectoryPoints[trajectoryPoints.length - 1].time;
 
-            // Prediction step
+        if (startTime >= endTime) {
+            // Not enough time after bootstrap to generate estimates
+            return { estimates };
+        }
+
+        const totalTicks = Math.round((endTime - startTime) / defaultDt);
+
+        // Calculate tick intervals based on ratio
+        const measurementTicks = estimateRatio >= 1 ? Math.round(estimateRatio) : 1;  // How often measurements occur
+        const estimateTicks = estimateRatio < 1 ? Math.round(1 / estimateRatio) : 1;   // How often estimates occur
+
+        // Create measurement lookup by time
+        const measurementMap = new Map();
+        for (const measurement of measurements) {
+            const timeKey = measurement.time.toFixed(1);
+            measurementMap.set(timeKey, measurement);
+        }
+
+        let measurementIndex = 0;
+
+        // Process each tick from start to end
+        for (let tick = 0; tick <= totalTicks; tick++) {
+            const currentTime = startTime + (tick * defaultDt);
+            const timeKey = currentTime.toFixed(1);
+
+            // Always perform prediction step
             state = this._multiply(F, state);
             const FP = this._multiply(F, P);
             const FT = [
@@ -195,41 +216,45 @@ class CAFilter {
                 [0, defaultDt, 0, 1, 0, 0],
                 [defaultDt*defaultDt/2, 0, defaultDt, 0, 1, 0],
                 [0, defaultDt*defaultDt/2, 0, defaultDt, 0, 1]
-            ]; // F transpose
+            ];
             P = this._add(this._multiply(FP, FT), Q);
 
-            // Update step
-            const measurementNoise_i = measurement.noise || defaultMeasNoise;
-            const R = [
-                [measurementNoise_i, 0],
-                [0, measurementNoise_i]
-            ];
+            // Update step: only if we have a measurement at this tick
+            if (measurementMap.has(timeKey)) {
+                const measurement = measurementMap.get(timeKey);
+                const measurementNoise_i = measurement.noise || defaultMeasNoise;
+                const R = [
+                    [measurementNoise_i, 0],
+                    [0, measurementNoise_i]
+                ];
 
-            const predicted_z = this._multiply(H, state);
-            const innovation = this._subtract([[measurement.position[0]], [measurement.position[1]]], predicted_z);
+                const predicted_z = this._multiply(H, state);
+                const innovation = this._subtract([[measurement.position[0]], [measurement.position[1]]], predicted_z);
 
-            const HP = this._multiply(H, P);
-            const S = this._add(this._multiply(HP, HT), R);
+                const HP = this._multiply(H, P);
+                const S = this._add(this._multiply(HP, HT), R);
 
-            const K = this._multiply(this._multiply(P, HT), this._inverse2x2(S));
+                const K = this._multiply(this._multiply(P, HT), this._inverse2x2(S));
 
-            state = this._add(state, this._multiply(K, innovation));
+                state = this._add(state, this._multiply(K, innovation));
 
-            // Joseph form covariance update (for numerical stability)
-            const I_KH = this._subtract(I6, this._multiply(K, H));
-            P = this._multiply(I_KH, P);
+                // Joseph form covariance update
+                const I_KH = this._subtract(I6, this._multiply(K, H));
+                P = this._multiply(I_KH, P);
+            }
 
-            // Extract position and covariance for output
-            const estimate = {
-                time: measurement.time,
-                position: [state[0][0], state[1][0]],
-                covariance: [
-                    [P[0][0], P[0][1]],
-                    [P[1][0], P[1][1]]
-                ]
-            };
-
-            estimates.push(estimate);
+            // Output estimate: based on estimate tick schedule
+            if (tick % estimateTicks === 0) {
+                const estimate = {
+                    time: currentTime,
+                    position: [state[0][0], state[1][0]],
+                    covariance: [
+                        [P[0][0], P[0][1]],
+                        [P[1][0], P[1][1]]
+                    ]
+                };
+                estimates.push(estimate);
+            }
         }
 
         return { estimates };

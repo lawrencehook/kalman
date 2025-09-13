@@ -10,12 +10,21 @@ class App {
         this.isPlaying = false;
         this.playInterval = null;
 
+        // View transform state
+        this.zoom = 1.0;
+        this.panX = 0;
+        this.panY = 0;
+        this.isDragging = false;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
+
         this.config = {
-            trajectoryType: 'circle',
+            trajectoryType: 'line',
             measurementNoise: 5.0,
             processNoise: 1.0,
             samplingRatio: 0.5,
-            playSpeed: 50  // ms per frame
+            playSpeed: 50,  // ms per frame
+            showRatio: 1.0  // 1.0 = show all estimates, 0.0 = show all measurements
         };
 
         this.init();
@@ -30,61 +39,188 @@ class App {
     setupCanvas() {
         this.canvas = document.getElementById('canvas');
         if (!this.canvas) {
-            // Create canvas if it doesn't exist
+            // Create fullscreen canvas
             this.canvas = document.createElement('canvas');
             this.canvas.id = 'canvas';
-            this.canvas.width = 600;
-            this.canvas.height = 400;
             document.body.appendChild(this.canvas);
         }
 
+        // Make canvas fullscreen
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
         this.ctx = this.canvas.getContext('2d');
-        this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2); // Center origin
+
+        // Setup mouse interaction
+        this.setupMouseEvents();
+    }
+
+    resizeCanvas() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        // Redraw after resize
+        if (this.currentData) {
+            this.draw();
+        }
+    }
+
+    setupMouseEvents() {
+        // Mouse wheel for zoom
+        this.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Zoom towards mouse position (reduced sensitivity)
+            const zoomFactor = e.deltaY > 0 ? 0.95 : 1.05;
+            const newZoom = Math.max(0.1, Math.min(10, this.zoom * zoomFactor));
+
+            // Adjust pan to zoom towards mouse
+            const zoomRatio = newZoom / this.zoom;
+            this.panX = mouseX - (mouseX - this.panX) * zoomRatio;
+            this.panY = mouseY - (mouseY - this.panY) * zoomRatio;
+
+            this.zoom = newZoom;
+            this.draw();
+        });
+
+        // Mouse down - start dragging
+        this.canvas.addEventListener('mousedown', (e) => {
+            this.isDragging = true;
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+            this.canvas.style.cursor = 'grabbing';
+        });
+
+        // Mouse move - pan when dragging
+        this.canvas.addEventListener('mousemove', (e) => {
+            if (this.isDragging) {
+                const deltaX = e.clientX - this.lastMouseX;
+                const deltaY = e.clientY - this.lastMouseY;
+
+                this.panX += deltaX;
+                this.panY += deltaY;
+
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+
+                this.draw();
+            }
+        });
+
+        // Mouse up - stop dragging
+        this.canvas.addEventListener('mouseup', () => {
+            this.isDragging = false;
+            this.canvas.style.cursor = 'grab';
+        });
+
+        // Double click - reset view
+        this.canvas.addEventListener('dblclick', () => {
+            this.resetView();
+        });
+
+        // Set initial cursor
+        this.canvas.style.cursor = 'grab';
+    }
+
+    resetView() {
+        this.zoom = 1.0;
+        this.panX = this.canvas.width / 2;
+        this.panY = this.canvas.height / 2;
+        this.draw();
     }
 
     setupControls() {
-        // Create simple controls
+        // Create overlay controls
         const controls = document.createElement('div');
+        controls.id = 'controls';
         controls.innerHTML = `
-            <div style="margin: 10px;">
-                <button id="playBtn">Play</button>
-                <button id="resetBtn">Reset</button>
-                <label>Trajectory:
-                    <select id="trajectorySelect">
-                        <option value="circle">Circle</option>
-                        <option value="line">Line</option>
-                    </select>
-                </label>
-                <label>Measurement Noise:
-                    <input type="range" id="noiseSlider" min="1" max="20" value="5" step="0.5">
+            <div class="custom-dropdown" id="trajectoryDropdown">
+                <span id="trajectorySelected">Loading...</span>
+                <div class="dropdown-options" id="trajectoryOptions">
+                    <!-- Options will be populated dynamically -->
+                </div>
+            </div>
+
+            <label>Measurement Noise:
+                <div class="slider-container">
+                    <input type="range" id="noiseSlider" min="0.1" max="20" value="5" step="0.1">
                     <span id="noiseValue">5.0</span>
-                </label>
-                <label>Process Noise:
+                </div>
+            </label>
+
+            <label>Process Noise:
+                <div class="slider-container">
                     <input type="range" id="processNoiseSlider" min="0.1" max="5" value="1" step="0.1">
                     <span id="processNoiseValue">1.0</span>
-                </label>
-                <br>
-                <label>Time:
-                    <input type="range" id="timeSlider" min="0" max="10" value="0" step="0.1">
+                </div>
+            </label>
+
+            <label>Estimate/Measurement Ratio:
+                <div class="slider-container">
+                    <input type="range" id="ratioSlider" min="0.1" max="10" value="1" step="0.1">
+                    <span id="ratioValue">1.0</span>
+                </div>
+            </label>
+
+            <div class="control-buttons">
+                <div class="time-container">
+                    <input type="range" id="timeSlider" min="0" max="30" value="0" step="0.1" style="width: 300px;">
                     <span id="timeValue">0.0s</span>
-                </label>
+                </div>
+                <div class="button-group">
+                    <button id="stepBackBtn">◀</button>
+                    <button id="playBtn">Play</button>
+                    <button id="stepForwardBtn">▶</button>
+                    <button id="resetBtn">Reset</button>
+                </div>
             </div>
         `;
 
-        if (document.getElementById('controls')) {
-            document.getElementById('controls').replaceWith(controls);
+        // Replace existing controls or add to body
+        const existing = document.getElementById('controls');
+        if (existing) {
+            existing.replaceWith(controls);
         } else {
-            document.body.insertBefore(controls, this.canvas);
+            document.body.appendChild(controls);
         }
-        controls.id = 'controls';
+
+        // Populate trajectory dropdown from registry
+        this.populateTrajectoryDropdown();
 
         // Event listeners
         document.getElementById('playBtn').onclick = () => this.togglePlay();
         document.getElementById('resetBtn').onclick = () => this.reset();
-        document.getElementById('trajectorySelect').onchange = (e) => {
-            this.config.trajectoryType = e.target.value;
-            this.generateAndRun();
+        document.getElementById('stepBackBtn').onclick = () => this.stepTime(-0.1);
+        document.getElementById('stepForwardBtn').onclick = () => this.stepTime(0.1);
+
+        // Custom dropdown functionality
+        const dropdown = document.getElementById('trajectoryDropdown');
+        const selected = document.getElementById('trajectorySelected');
+        const options = document.getElementById('trajectoryOptions');
+
+        dropdown.onclick = () => {
+            dropdown.classList.toggle('open');
         };
+
+        options.onclick = (e) => {
+            if (e.target.dataset.value) {
+                selected.textContent = e.target.textContent;
+                this.config.trajectoryType = e.target.dataset.value;
+                dropdown.classList.remove('open');
+                this.generateAndRun();
+            }
+        };
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+
         document.getElementById('noiseSlider').oninput = (e) => {
             this.config.measurementNoise = parseFloat(e.target.value);
             document.getElementById('noiseValue').textContent = e.target.value;
@@ -95,11 +231,129 @@ class App {
             document.getElementById('processNoiseValue').textContent = e.target.value;
             this.generateAndRun();
         };
+        document.getElementById('ratioSlider').oninput = (e) => {
+            this.config.estimateRatio = parseFloat(e.target.value);
+            document.getElementById('ratioValue').textContent = e.target.value;
+            this.generateAndRun(); // Regenerate with new ratio
+        };
         document.getElementById('timeSlider').oninput = (e) => {
             this.currentTime = parseFloat(e.target.value);
             document.getElementById('timeValue').textContent = `${e.target.value}s`;
             this.draw();
         };
+
+        // Keyboard event listeners
+        this.setupKeyboardEvents();
+    }
+
+    setupKeyboardEvents() {
+        document.addEventListener('keydown', (e) => {
+            // Prevent default only for our specific keys
+            if (['Space', 'ArrowLeft', 'ArrowRight'].includes(e.code) ||
+                (e.code === 'KeyR' && !e.metaKey && !e.ctrlKey)) {
+                e.preventDefault();
+            }
+
+            switch(e.code) {
+                case 'Space':
+                    this.togglePlay();
+                    break;
+                case 'KeyR':
+                    if (!e.metaKey && !e.ctrlKey) { // Allow Cmd+R for refresh
+                        this.reset();
+                    }
+                    break;
+                case 'ArrowLeft':
+                    this.stepTime(-0.1);
+                    break;
+                case 'ArrowRight':
+                    this.stepTime(0.1);
+                    break;
+            }
+        });
+
+        // Create legend and error chart overlays
+        this.createLegendOverlay();
+        this.createErrorChartOverlay();
+    }
+
+    populateTrajectoryDropdown() {
+        const trajectories = TrajectoryRegistry.getAll();
+        const selectedSpan = document.getElementById('trajectorySelected');
+        const optionsDiv = document.getElementById('trajectoryOptions');
+
+        // Clear existing options
+        optionsDiv.innerHTML = '';
+
+        // Add options from registry
+        for (const trajectory of trajectories) {
+            const option = document.createElement('div');
+            option.setAttribute('data-value', trajectory.id);
+            option.textContent = trajectory.displayName;
+            optionsDiv.appendChild(option);
+        }
+
+        // Set default to 'line' if available, otherwise first trajectory
+        let defaultTrajectory = trajectories.find(t => t.id === 'line') || trajectories[0];
+        if (defaultTrajectory) {
+            this.config.trajectoryType = defaultTrajectory.id;
+            selectedSpan.textContent = defaultTrajectory.displayName;
+        }
+    }
+
+    createLegendOverlay() {
+        // Create legend overlay
+        const legend = document.createElement('div');
+        legend.id = 'legend';
+        legend.innerHTML = `
+            <div style="color: #32cd32; margin-bottom: 5px;">● Ground Truth</div>
+            <div style="color: #ff1493; margin-bottom: 5px;">● Measurements</div>
+            <div style="color: #00ffff; margin-bottom: 5px;">● Estimates</div>
+            <div style="color: rgba(0, 255, 255, 0.6); margin-bottom: 8px;">○ Confidence</div>
+            <div style="color: #aaa; font-size: 11px; margin-bottom: 2px;">Wheel: zoom, Drag: pan</div>
+            <div style="color: #aaa; font-size: 11px;">Double-click: reset view</div>
+        `;
+
+        // Replace existing legend or add to body
+        const existing = document.getElementById('legend');
+        if (existing) {
+            existing.replaceWith(legend);
+        } else {
+            document.body.appendChild(legend);
+        }
+    }
+
+    createErrorChartOverlay() {
+        // Create error chart overlay
+        const errorChart = document.createElement('div');
+        errorChart.id = 'errorChart';
+        errorChart.innerHTML = `
+            <div style="color: #888; font-size: 16px; font-weight: 600; text-align: center; margin-bottom: 10px;">Error Analysis</div>
+            <div style="color: #666; font-size: 12px; text-align: center;">Position error metrics</div>
+            <div style="color: #666; font-size: 12px; text-align: center;">will appear here</div>
+        `;
+
+        // Replace existing error chart or add to body
+        const existing = document.getElementById('errorChart');
+        if (existing) {
+            existing.replaceWith(errorChart);
+        } else {
+            document.body.appendChild(errorChart);
+        }
+    }
+
+    stepTime(deltaTime) {
+        if (this.isPlaying) return; // Don't step while playing
+
+        const timeSlider = document.getElementById('timeSlider');
+        const maxTime = parseFloat(timeSlider.max);
+
+        this.currentTime = Math.max(0, Math.min(maxTime, this.currentTime + deltaTime));
+
+        timeSlider.value = this.currentTime;
+        document.getElementById('timeValue').textContent = `${this.currentTime.toFixed(1)}s`;
+
+        this.draw();
     }
 
     async generateAndRun() {
@@ -107,10 +361,17 @@ class App {
             console.log('🔄 Generating trajectory...');
 
             // 1. Generate ground truth trajectory
-            const trajectoryPoints = DataGenerator.generate(this.config.trajectoryType, {
-                radius: 100,
-                duration: 10,
-                dt: 0.1
+            const trajectoryRadius = Math.min(this.canvas.width, this.canvas.height) * 0.8 / 2; // 0.8 of min dimension
+            const trajectoryPoints = TrajectoryRegistry.generate(this.config.trajectoryType, {
+                radius: trajectoryRadius,
+                duration: 30,              // 30 seconds total
+                dt: 0.1,
+                angularVelocity: 3 * 2 * Math.PI / 30,  // 3 full circles in 30s
+                // Line trajectory parameters
+                startX: -trajectoryRadius,
+                startY: 0,
+                endX: trajectoryRadius,
+                endY: 0
             });
 
             console.log('📏 Generated trajectory:', trajectoryPoints.length, 'points');
@@ -124,8 +385,8 @@ class App {
             // 2. Generate noisy measurements
             const filterInput = MeasurementGenerator.generateMeasurements(trajectoryPoints, {
                 measurementNoise: this.config.measurementNoise,
-                samplingRatio: this.config.samplingRatio,
                 processNoise: this.config.processNoise,
+                estimateRatio: this.config.estimateRatio,
                 dt: 0.1
             });
 
@@ -167,7 +428,12 @@ class App {
                 document.getElementById('timeValue').textContent = '0.0s';
             }
 
-            this.draw();
+            // Initialize view if not set
+            if (this.panX === 0 && this.panY === 0) {
+                this.resetView();
+            } else {
+                this.draw();
+            }
 
             console.log('🎉 End-to-end pipeline complete!');
 
@@ -182,10 +448,12 @@ class App {
         const ctx = this.ctx;
 
         // Clear canvas
-        ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        ctx.restore();
+
+        // Apply zoom and pan transform
+        ctx.translate(this.panX, this.panY);
+        ctx.scale(this.zoom, this.zoom);
 
         const { groundTruth, measurements, estimates } = this.currentData;
 
@@ -194,65 +462,123 @@ class App {
         const currentMeasurements = measurements.filter(m => m.time <= this.currentTime);
         const currentEstimates = estimates.filter(e => e.time <= this.currentTime);
 
-        // Draw ground truth (blue dots)
-        ctx.fillStyle = '#0066cc';
+        // Calculate constant dot sizes (inverse of zoom to maintain constant screen size)
+        const groundTruthRadius = 3 / this.zoom;
+        const measurementRadius = 4 / this.zoom;
+        const estimateRadius = 3 / this.zoom;
+
+        // Helper function to calculate fade alpha based on time age
+        const calculateFadeAlpha = (pointTime, currentTime, fadeWindow = 5.0) => {
+            const age = currentTime - pointTime;
+            if (age <= 0) return 1.0; // Current or future points are fully opaque
+            if (age >= fadeWindow) return 0.1; // Very old points are nearly transparent
+            return 0.1 + 0.9 * (1 - age / fadeWindow); // Linear fade from 1.0 to 0.1
+        };
+
+        // Draw ground truth (bright green dots with fading)
         for (const point of currentGroundTruth) {
+            const alpha = calculateFadeAlpha(point.time, this.currentTime);
+            ctx.fillStyle = `rgba(50, 205, 50, ${alpha})`;
             const [x, y] = point.position;
             ctx.beginPath();
-            ctx.arc(x, y, 2, 0, 2 * Math.PI);
+            ctx.arc(x, y, groundTruthRadius, 0, 2 * Math.PI);
             ctx.fill();
         }
 
-        // Draw measurements (red dots)
-        ctx.fillStyle = '#cc0000';
+        // Draw measurements (bright red dots with fading)
         for (const measurement of currentMeasurements) {
+            const alpha = calculateFadeAlpha(measurement.time, this.currentTime);
+            ctx.fillStyle = `rgba(255, 20, 147, ${alpha})`;
             const [x, y] = measurement.position;
             ctx.beginPath();
-            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.arc(x, y, measurementRadius, 0, 2 * Math.PI);
             ctx.fill();
         }
 
-        // Draw estimates (green dots)
-        ctx.fillStyle = '#00cc00';
+        // Draw estimates (bright cyan dots with fading)
         for (const estimate of currentEstimates) {
+            const alpha = calculateFadeAlpha(estimate.time, this.currentTime);
+            ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
             const [x, y] = estimate.position;
             ctx.beginPath();
-            ctx.arc(x, y, 2, 0, 2 * Math.PI);
+            ctx.arc(x, y, estimateRadius, 0, 2 * Math.PI);
             ctx.fill();
         }
 
-        // Draw confidence ellipses (simplified - just circles for now)
-        ctx.strokeStyle = '#00cc0055';
-        ctx.lineWidth = 1;
+        // Draw confidence ellipses (proper 2D ellipses with directional uncertainty)
+        ctx.lineWidth = 2 / this.zoom; // Constant line width
         for (const estimate of currentEstimates) {
+            const alpha = calculateFadeAlpha(estimate.time, this.currentTime);
+            ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.3})`; // Base alpha of 0.3, faded by time
+
             const [x, y] = estimate.position;
             const cov = estimate.covariance;
-            const radius = Math.sqrt(cov[0][0] + cov[1][1]) * 2; // Rough approximation
 
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, 2 * Math.PI);
-            ctx.stroke();
+            // Calculate eigenvalues and eigenvectors for proper ellipse
+            this.drawConfidenceEllipse(ctx, x, y, cov, 2.0); // 2-sigma (95% confidence)
         }
 
-        // Draw legend
-        this.drawLegend();
+
+        // Legend and error chart are now HTML overlays
     }
 
-    drawLegend() {
-        const ctx = this.ctx;
+    /**
+     * Draw a proper confidence ellipse based on 2x2 covariance matrix
+     * Uses eigenvalue decomposition to get correct orientation and shape
+     */
+    drawConfidenceEllipse(ctx, centerX, centerY, covMatrix, sigmaLevel = 2.0) {
+        // Extract covariance matrix elements
+        const a = covMatrix[0][0]; // var(x)
+        const b = covMatrix[0][1]; // cov(x,y)
+        const c = covMatrix[1][0]; // cov(y,x) - should equal b
+        const d = covMatrix[1][1]; // var(y)
+
+        // Calculate eigenvalues of the covariance matrix
+        const trace = a + d;
+        const det = a * d - b * c;
+        const discriminant = trace * trace - 4 * det;
+
+        if (discriminant < 0) {
+            // Fallback to circle if matrix is not positive definite
+            const radius = Math.sqrt(Math.max(a, d)) * sigmaLevel;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+            return;
+        }
+
+        const sqrtDiscriminant = Math.sqrt(discriminant);
+        const lambda1 = (trace + sqrtDiscriminant) / 2; // Larger eigenvalue
+        const lambda2 = (trace - sqrtDiscriminant) / 2; // Smaller eigenvalue
+
+        // Calculate eigenvector for lambda1 (determines orientation)
+        let angle;
+        if (Math.abs(b) < 1e-10) {
+            // Matrix is already diagonal
+            angle = a >= d ? 0 : Math.PI / 2;
+        } else {
+            // Calculate angle of first eigenvector
+            const eigenvector1_x = lambda1 - d;
+            const eigenvector1_y = b;
+            angle = Math.atan2(eigenvector1_y, eigenvector1_x);
+        }
+
+        // Semi-axes lengths (scaled by sigma level)
+        const semiMajor = Math.sqrt(Math.max(lambda1, 0)) * sigmaLevel;
+        const semiMinor = Math.sqrt(Math.max(lambda2, 0)) * sigmaLevel;
+
+        // Draw the ellipse
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle);
+        ctx.scale(semiMajor, semiMinor);
 
-        ctx.fillStyle = '#000';
-        ctx.font = '12px monospace';
-
-        ctx.fillStyle = '#0066cc'; ctx.fillText('● Ground Truth', 10, 20);
-        ctx.fillStyle = '#cc0000'; ctx.fillText('● Measurements', 10, 35);
-        ctx.fillStyle = '#00cc00'; ctx.fillText('● Estimates', 10, 50);
-        ctx.fillStyle = '#00cc00'; ctx.fillText('○ Confidence', 10, 65);
-
+        ctx.beginPath();
+        ctx.arc(0, 0, 1, 0, 2 * Math.PI);
         ctx.restore();
+        ctx.stroke();
     }
+
 
     togglePlay() {
         this.isPlaying = !this.isPlaying;
