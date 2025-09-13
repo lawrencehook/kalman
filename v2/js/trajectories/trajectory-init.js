@@ -17,7 +17,6 @@
     TrajectoryRegistry.register('zigzag', ZigzagTrajectory);
     TrajectoryRegistry.register('orbitdecay', OrbitDecayTrajectory);
     TrajectoryRegistry.register('acceleration', AccelerationTrajectory);
-    TrajectoryRegistry.register('uturn', UTurnTrajectory);
     TrajectoryRegistry.register('multispeed', MultiSpeedTrajectory);
     TrajectoryRegistry.register('cloverleaf', CloverleafTrajectory);
 
