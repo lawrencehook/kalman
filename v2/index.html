@@ -90,12 +90,32 @@
             border-radius: 12px;
             padding: 20px;
             backdrop-filter: blur(10px);
-            z-index: 10;
+            z-index: 5;
             color: white;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
             min-width: 200px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            gap: 8px;
+        }
+
+        .legend-item input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            accent-color: #667eea;
+            cursor: pointer;
+        }
+
+        .legend-item label {
+            cursor: pointer;
+            font-size: 14px;
+            user-select: none;
         }
 
         #errorChart {
@@ -107,7 +127,7 @@
             border-radius: 12px;
             padding: 20px;
             backdrop-filter: blur(10px);
-            z-index: 10;
+            z-index: 5;
             color: white;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
@@ -217,6 +237,20 @@
     <script src="js/trajectories/trajectory-registry.js"></script>
     <script src="js/trajectories/line-trajectory.js"></script>
     <script src="js/trajectories/circle-trajectory.js"></script>
+    <script src="js/trajectories/figure8-trajectory.js"></script>
+    <script src="js/trajectories/parabolic-trajectory.js"></script>
+    <script src="js/trajectories/stationary-trajectory.js"></script>
+    <script src="js/trajectories/sine-trajectory.js"></script>
+    <script src="js/trajectories/square-trajectory.js"></script>
+    <script src="js/trajectories/spiral-trajectory.js"></script>
+    <script src="js/trajectories/randomwalk-trajectory.js"></script>
+    <script src="js/trajectories/stopgo-trajectory.js"></script>
+    <script src="js/trajectories/zigzag-trajectory.js"></script>
+    <script src="js/trajectories/orbitdecay-trajectory.js"></script>
+    <script src="js/trajectories/acceleration-trajectory.js"></script>
+    <script src="js/trajectories/uturn-trajectory.js"></script>
+    <script src="js/trajectories/multispeed-trajectory.js"></script>
+    <script src="js/trajectories/cloverleaf-trajectory.js"></script>
     <script src="js/trajectories/trajectory-init.js"></script>
 
     <script src="js/measurements/measurement-generator.js"></script>

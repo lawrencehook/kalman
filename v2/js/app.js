@@ -24,7 +24,16 @@ class App {
             processNoise: 1.0,
             samplingRatio: 0.5,
             playSpeed: 50,  // ms per frame
-            showRatio: 1.0  // 1.0 = show all estimates, 0.0 = show all measurements
+            showRatio: 1.0,  // 1.0 = show all estimates, 0.0 = show all measurements
+            estimateRatio: 1.0  // Default 1:1 ratio
+        };
+
+        // Visibility toggles
+        this.visibility = {
+            groundTruth: true,
+            measurements: true,
+            estimates: true,
+            confidence: true
         };
 
         this.init();
@@ -34,6 +43,15 @@ class App {
         this.setupCanvas();
         this.setupControls();
         this.generateAndRun();
+    }
+
+    // Helper methods for ratio slider logarithmic scaling
+    linearToLogScale(linearRatio) {
+        return Math.log10(linearRatio) * 10; // Convert to -10 to 10 scale
+    }
+
+    logToLinearScale(logValue) {
+        return Math.pow(10, logValue / 10); // Convert from -10 to 10 scale
     }
 
     setupCanvas() {
@@ -160,7 +178,7 @@ class App {
 
             <label>Estimate/Measurement Ratio:
                 <div class="slider-container">
-                    <input type="range" id="ratioSlider" min="0.1" max="10" value="1" step="0.1">
+                    <input type="range" id="ratioSlider" min="-10" max="10" value="0" step="1">
                     <span id="ratioValue">1.0</span>
                 </div>
             </label>
@@ -232,8 +250,19 @@ class App {
             this.generateAndRun();
         };
         document.getElementById('ratioSlider').oninput = (e) => {
-            this.config.estimateRatio = parseFloat(e.target.value);
-            document.getElementById('ratioValue').textContent = e.target.value;
+            const logValue = parseFloat(e.target.value);
+            const linearRatio = this.logToLinearScale(logValue);
+
+            this.config.estimateRatio = linearRatio;
+
+            // Format display value nicely
+            let displayValue;
+            if (linearRatio >= 1) {
+                displayValue = linearRatio.toFixed(1);
+            } else {
+                displayValue = linearRatio.toFixed(2);
+            }
+            document.getElementById('ratioValue').textContent = displayValue;
             this.generateAndRun(); // Regenerate with new ratio
         };
         document.getElementById('timeSlider').oninput = (e) => {
@@ -272,9 +301,19 @@ class App {
             }
         });
 
+        // Initialize slider values
+        this.initializeSliderValues();
+
         // Create legend and error chart overlays
         this.createLegendOverlay();
         this.createErrorChartOverlay();
+    }
+
+    initializeSliderValues() {
+        // Set ratio slider to logarithmic position for default value (1.0)
+        const logValue = this.linearToLogScale(this.config.estimateRatio);
+        document.getElementById('ratioSlider').value = logValue;
+        document.getElementById('ratioValue').textContent = this.config.estimateRatio.toFixed(1);
     }
 
     populateTrajectoryDropdown() {
@@ -306,11 +345,23 @@ class App {
         const legend = document.createElement('div');
         legend.id = 'legend';
         legend.innerHTML = `
-            <div style="color: #32cd32; margin-bottom: 5px;">● Ground Truth</div>
-            <div style="color: #ff1493; margin-bottom: 5px;">● Measurements</div>
-            <div style="color: #00ffff; margin-bottom: 5px;">● Estimates</div>
-            <div style="color: rgba(0, 255, 255, 0.6); margin-bottom: 8px;">○ Confidence</div>
-            <div style="color: #aaa; font-size: 11px; margin-bottom: 2px;">Wheel: zoom, Drag: pan</div>
+            <div class="legend-item">
+                <input type="checkbox" id="toggleGroundTruth" checked>
+                <label for="toggleGroundTruth" style="color: #32cd32;">● Ground Truth</label>
+            </div>
+            <div class="legend-item">
+                <input type="checkbox" id="toggleMeasurements" checked>
+                <label for="toggleMeasurements" style="color: #ff1493;">● Measurements</label>
+            </div>
+            <div class="legend-item">
+                <input type="checkbox" id="toggleEstimates" checked>
+                <label for="toggleEstimates" style="color: #00ffff;">● Estimates</label>
+            </div>
+            <div class="legend-item">
+                <input type="checkbox" id="toggleConfidence" checked>
+                <label for="toggleConfidence" style="color: rgba(0, 255, 255, 0.6);">○ Confidence</label>
+            </div>
+            <div style="color: #aaa; font-size: 11px; margin-top: 8px; margin-bottom: 2px;">Wheel: zoom, Drag: pan</div>
             <div style="color: #aaa; font-size: 11px;">Double-click: reset view</div>
         `;
 
@@ -321,6 +372,31 @@ class App {
         } else {
             document.body.appendChild(legend);
         }
+
+        // Add event listeners for toggles
+        this.setupLegendToggleListeners();
+    }
+
+    setupLegendToggleListeners() {
+        document.getElementById('toggleGroundTruth').onchange = (e) => {
+            this.visibility.groundTruth = e.target.checked;
+            this.draw();
+        };
+
+        document.getElementById('toggleMeasurements').onchange = (e) => {
+            this.visibility.measurements = e.target.checked;
+            this.draw();
+        };
+
+        document.getElementById('toggleEstimates').onchange = (e) => {
+            this.visibility.estimates = e.target.checked;
+            this.draw();
+        };
+
+        document.getElementById('toggleConfidence').onchange = (e) => {
+            this.visibility.confidence = e.target.checked;
+            this.draw();
+        };
     }
 
     createErrorChartOverlay() {
@@ -476,46 +552,54 @@ class App {
         };
 
         // Draw ground truth (bright green dots with fading)
-        for (const point of currentGroundTruth) {
-            const alpha = calculateFadeAlpha(point.time, this.currentTime);
-            ctx.fillStyle = `rgba(50, 205, 50, ${alpha})`;
-            const [x, y] = point.position;
-            ctx.beginPath();
-            ctx.arc(x, y, groundTruthRadius, 0, 2 * Math.PI);
-            ctx.fill();
+        if (this.visibility.groundTruth) {
+            for (const point of currentGroundTruth) {
+                const alpha = calculateFadeAlpha(point.time, this.currentTime);
+                ctx.fillStyle = `rgba(50, 205, 50, ${alpha})`;
+                const [x, y] = point.position;
+                ctx.beginPath();
+                ctx.arc(x, y, groundTruthRadius, 0, 2 * Math.PI);
+                ctx.fill();
+            }
         }
 
         // Draw measurements (bright red dots with fading)
-        for (const measurement of currentMeasurements) {
-            const alpha = calculateFadeAlpha(measurement.time, this.currentTime);
-            ctx.fillStyle = `rgba(255, 20, 147, ${alpha})`;
-            const [x, y] = measurement.position;
-            ctx.beginPath();
-            ctx.arc(x, y, measurementRadius, 0, 2 * Math.PI);
-            ctx.fill();
+        if (this.visibility.measurements) {
+            for (const measurement of currentMeasurements) {
+                const alpha = calculateFadeAlpha(measurement.time, this.currentTime);
+                ctx.fillStyle = `rgba(255, 20, 147, ${alpha})`;
+                const [x, y] = measurement.position;
+                ctx.beginPath();
+                ctx.arc(x, y, measurementRadius, 0, 2 * Math.PI);
+                ctx.fill();
+            }
         }
 
         // Draw estimates (bright cyan dots with fading)
-        for (const estimate of currentEstimates) {
-            const alpha = calculateFadeAlpha(estimate.time, this.currentTime);
-            ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
-            const [x, y] = estimate.position;
-            ctx.beginPath();
-            ctx.arc(x, y, estimateRadius, 0, 2 * Math.PI);
-            ctx.fill();
+        if (this.visibility.estimates) {
+            for (const estimate of currentEstimates) {
+                const alpha = calculateFadeAlpha(estimate.time, this.currentTime);
+                ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+                const [x, y] = estimate.position;
+                ctx.beginPath();
+                ctx.arc(x, y, estimateRadius, 0, 2 * Math.PI);
+                ctx.fill();
+            }
         }
 
         // Draw confidence ellipses (proper 2D ellipses with directional uncertainty)
-        ctx.lineWidth = 2 / this.zoom; // Constant line width
-        for (const estimate of currentEstimates) {
-            const alpha = calculateFadeAlpha(estimate.time, this.currentTime);
-            ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.3})`; // Base alpha of 0.3, faded by time
+        if (this.visibility.confidence) {
+            ctx.lineWidth = 2 / this.zoom; // Constant line width
+            for (const estimate of currentEstimates) {
+                const alpha = calculateFadeAlpha(estimate.time, this.currentTime);
+                ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.3})`; // Base alpha of 0.3, faded by time
 
-            const [x, y] = estimate.position;
-            const cov = estimate.covariance;
+                const [x, y] = estimate.position;
+                const cov = estimate.covariance;
 
-            // Calculate eigenvalues and eigenvectors for proper ellipse
-            this.drawConfidenceEllipse(ctx, x, y, cov, 2.0); // 2-sigma (95% confidence)
+                // Calculate eigenvalues and eigenvectors for proper ellipse
+                this.drawConfidenceEllipse(ctx, x, y, cov, 2.0); // 2-sigma (95% confidence)
+            }
         }
 
 
