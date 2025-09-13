@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalman Filter V2</title>
+</head>
+<body>
+    <div id="app">
+        <h1>V2 Sandbox - Schema-Driven Architecture</h1>
+        <p>Open browser console and run <code>runSchemaTests()</code> to test validation</p>
+    </div>
+
+    <!-- Core V2 Components -->
+    <script src="js/schema-validator.js"></script>
+    <script src="js/schema-tests.js"></script>
+
+    <script>
+        console.log("🔧 V2 JSON Schema Validator loaded");
+        console.log("📋 Run runSchemaTests() to test async validation with schema loading");
+        console.log("⚡ Run runSyncTests() after schemas are loaded for sync validation");
+
+        // Example usage with async schema loading
+        async function exampleUsage() {
+            const exampleTrajectory = {
+                time: 0.05,
+                position: [10, 20],
+                velocity: [1, -0.5]
+            };
+
+            try {
+                const isValid = await SchemaValidator.validate('trajectory-point', exampleTrajectory);
+                console.log("✅ Example validation:", isValid);
+            } catch (error) {
+                console.error("❌ Validation failed:", error.message);
+            }
+        }
+
+        // Auto-run example
+        exampleUsage();
+    </script>
+</body>
+</html>

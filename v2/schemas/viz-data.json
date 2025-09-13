@@ -1,0 +1,51 @@
+{
+  "name": "VizData",
+  "description": "Data package for visualization components",
+  "required": ["groundTruth", "measurements", "estimates", "currentTime"],
+  "properties": {
+    "groundTruth": {
+      "type": "array",
+      "elementType": {
+        "type": "array",
+        "length": 2,
+        "elementType": "number"
+      },
+      "description": "Array of true positions [[x,y], ...]"
+    },
+    "measurements": {
+      "type": "array",
+      "elementType": {
+        "type": "array",
+        "length": 2,
+        "elementType": "number"
+      },
+      "description": "Array of noisy measurements [[x,y], ...]"
+    },
+    "estimates": {
+      "type": "array",
+      "elementType": {
+        "type": "array",
+        "length": 2,
+        "elementType": "number"
+      },
+      "description": "Array of filter estimates [[x,y], ...]"
+    },
+    "confidenceEllipses": {
+      "type": "array",
+      "elementType": "object",
+      "optional": true,
+      "description": "Array of confidence ellipse data"
+    },
+    "currentTime": {
+      "type": "number",
+      "description": "Current simulation time"
+    },
+    "timeRange": {
+      "type": "array",
+      "length": 2,
+      "elementType": "number",
+      "optional": true,
+      "description": "Time range [start, end]"
+    }
+  }
+}

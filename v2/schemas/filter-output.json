@@ -1,0 +1,31 @@
+{
+  "name": "FilterOutput",
+  "description": "Output data from filtering algorithm",
+  "required": ["estimate", "covariance"],
+  "properties": {
+    "estimate": {
+      "type": "array",
+      "length": 2,
+      "elementType": "number",
+      "description": "Estimated 2D position [x, y]"
+    },
+    "covariance": {
+      "type": "matrix",
+      "dimensions": [2, 2],
+      "elementType": "number",
+      "description": "2x2 position covariance matrix"
+    },
+    "innovation": {
+      "type": "array",
+      "length": 2,
+      "elementType": "number",
+      "optional": true,
+      "description": "Measurement residual [dx, dy]"
+    },
+    "confidence": {
+      "type": "number",
+      "optional": true,
+      "description": "Confidence level (0-1)"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Config",
+  "description": "Application configuration parameters",
+  "required": ["dt", "measurementNoise", "processNoise", "trajectoryType", "filterType"],
+  "properties": {
+    "dt": {
+      "type": "number",
+      "description": "Simulation time step in seconds"
+    },
+    "measurementNoise": {
+      "type": "number",
+      "description": "Measurement noise standard deviation"
+    },
+    "processNoise": {
+      "type": "number",
+      "description": "Process noise parameter"
+    },
+    "trajectoryType": {
+      "type": "string",
+      "description": "Type of trajectory to generate"
+    },
+    "filterType": {
+      "type": "string",
+      "description": "Type of filter algorithm to use"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "FilterInput",
+  "description": "Input data sent to filtering algorithm",
+  "required": ["measurement", "timestamp", "measurementNoise"],
+  "properties": {
+    "measurement": {
+      "type": "array",
+      "length": 2,
+      "elementType": "number",
+      "description": "Noisy 2D measurement [x, y]"
+    },
+    "timestamp": {
+      "type": "number",
+      "description": "Measurement timestamp in seconds"
+    },
+    "measurementNoise": {
+      "type": "number",
+      "description": "Measurement noise variance"
+    }
+  }
+}

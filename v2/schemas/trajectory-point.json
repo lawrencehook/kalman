@@ -1,0 +1,31 @@
+{
+  "name": "TrajectoryPoint",
+  "description": "Single data point from trajectory generation",
+  "required": ["time", "position"],
+  "properties": {
+    "time": {
+      "type": "number",
+      "description": "Timestamp in seconds"
+    },
+    "position": {
+      "type": "array",
+      "length": 2,
+      "elementType": "number",
+      "description": "2D position [x, y]"
+    },
+    "velocity": {
+      "type": "array",
+      "length": 2,
+      "elementType": "number",
+      "optional": true,
+      "description": "2D velocity [vx, vy]"
+    },
+    "acceleration": {
+      "type": "array",
+      "length": 2,
+      "elementType": "number",
+      "optional": true,
+      "description": "2D acceleration [ax, ay]"
+    }
+  }
+}
