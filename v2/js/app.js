@@ -20,6 +20,7 @@ class App {
 
         this.config = {
             trajectoryType: 'line',
+            filterType: 'ca',
             measurementNoise: 5.0,
             processNoise: 1.0,
             samplingRatio: 0.5,
@@ -39,10 +40,8 @@ class App {
         // Error analysis data
         this.errorData = {
             times: [],
-            errorX: [],
-            errorY: [],
-            confidenceX: [],
-            confidenceY: [],
+            mahalanobis: [],
+            chisquare95: [], // 95% confidence threshold (chi-square with 2 DOF = 5.991)
             ellipseCoverage: 0
         };
 
@@ -155,8 +154,9 @@ class App {
 
     resetView() {
         this.zoom = 1.0;
-        this.panX = this.canvas.width / 2;
-        this.panY = this.canvas.height / 2;
+        // Position origin (0,0) in upper-right area to avoid overlays
+        this.panX = this.canvas.width * 0.60;   // 60% to the right
+        this.panY = this.canvas.height * 0.45;  // 45% down from top
         this.draw();
     }
 
@@ -165,10 +165,19 @@ class App {
         const controls = document.createElement('div');
         controls.id = 'controls';
         controls.innerHTML = `
-            <div class="custom-dropdown" id="trajectoryDropdown">
-                <span id="trajectorySelected">Loading...</span>
-                <div class="dropdown-options" id="trajectoryOptions">
-                    <!-- Options will be populated dynamically -->
+            <div class="dropdown-row">
+                <div class="custom-dropdown" id="filterDropdown">
+                    <span id="filterSelected">Loading...</span>
+                    <div class="dropdown-options" id="filterOptions">
+                        <!-- Options will be populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="custom-dropdown" id="trajectoryDropdown">
+                    <span id="trajectorySelected">Loading...</span>
+                    <div class="dropdown-options" id="trajectoryOptions">
+                        <!-- Options will be populated dynamically -->
+                    </div>
                 </div>
             </div>
 
@@ -218,8 +227,9 @@ class App {
             document.body.appendChild(controls);
         }
 
-        // Populate trajectory dropdown from registry
+        // Populate dropdowns from registries
         this.populateTrajectoryDropdown();
+        this.populateFilterDropdown();
 
         // Event listeners
         document.getElementById('playBtn').onclick = () => this.togglePlay();
@@ -227,28 +237,49 @@ class App {
         document.getElementById('stepBackBtn').onclick = () => this.stepTime(-0.1);
         document.getElementById('stepForwardBtn').onclick = () => this.stepTime(0.1);
 
-        // Custom dropdown functionality
-        const dropdown = document.getElementById('trajectoryDropdown');
-        const selected = document.getElementById('trajectorySelected');
-        const options = document.getElementById('trajectoryOptions');
+        // Custom dropdown functionality for trajectory
+        const trajectoryDropdown = document.getElementById('trajectoryDropdown');
+        const trajectorySelected = document.getElementById('trajectorySelected');
+        const trajectoryOptions = document.getElementById('trajectoryOptions');
 
-        dropdown.onclick = () => {
-            dropdown.classList.toggle('open');
+        trajectoryDropdown.onclick = () => {
+            trajectoryDropdown.classList.toggle('open');
         };
 
-        options.onclick = (e) => {
+        trajectoryOptions.onclick = (e) => {
             if (e.target.dataset.value) {
-                selected.textContent = e.target.textContent;
+                trajectorySelected.textContent = e.target.textContent;
                 this.config.trajectoryType = e.target.dataset.value;
-                dropdown.classList.remove('open');
+                trajectoryDropdown.classList.remove('open');
                 this.generateAndRun();
             }
         };
 
-        // Close dropdown when clicking outside
+        // Custom dropdown functionality for filter
+        const filterDropdown = document.getElementById('filterDropdown');
+        const filterSelected = document.getElementById('filterSelected');
+        const filterOptions = document.getElementById('filterOptions');
+
+        filterDropdown.onclick = () => {
+            filterDropdown.classList.toggle('open');
+        };
+
+        filterOptions.onclick = (e) => {
+            if (e.target.dataset.value) {
+                filterSelected.textContent = e.target.textContent;
+                this.config.filterType = e.target.dataset.value;
+                filterDropdown.classList.remove('open');
+                this.generateAndRun();
+            }
+        };
+
+        // Close dropdowns when clicking outside
         document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target)) {
-                dropdown.classList.remove('open');
+            if (!trajectoryDropdown.contains(e.target)) {
+                trajectoryDropdown.classList.remove('open');
+            }
+            if (!filterDropdown.contains(e.target)) {
+                filterDropdown.classList.remove('open');
             }
         });
 
@@ -369,6 +400,30 @@ class App {
         }
     }
 
+    populateFilterDropdown() {
+        const filters = FilterRegistry.getAll();
+        const selectedSpan = document.getElementById('filterSelected');
+        const optionsDiv = document.getElementById('filterOptions');
+
+        // Clear existing options
+        optionsDiv.innerHTML = '';
+
+        // Add options from registry
+        for (const filter of filters) {
+            const option = document.createElement('div');
+            option.setAttribute('data-value', filter.id);
+            option.textContent = filter.displayName;
+            optionsDiv.appendChild(option);
+        }
+
+        // Set default to 'ca' if available, otherwise first filter
+        let defaultFilter = filters.find(f => f.id === 'ca') || filters[0];
+        if (defaultFilter) {
+            this.config.filterType = defaultFilter.id;
+            selectedSpan.textContent = defaultFilter.displayName;
+        }
+    }
+
     createLegendOverlay() {
         // Create legend overlay
         const legend = document.createElement('div');
@@ -447,6 +502,39 @@ class App {
         // Initialize error chart canvas
         this.errorCanvas = document.getElementById('errorCanvas');
         this.errorCtx = this.errorCanvas.getContext('2d');
+
+        // Create error chart legend overlay
+        this.createErrorChartLegend();
+    }
+
+    createErrorChartLegend() {
+        // Create error chart legend overlay
+        const legend = document.createElement('div');
+        legend.id = 'errorChartLegend';
+        legend.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 10px;">
+                <div style="font-weight: 600; margin-bottom: 2px; color: #ccc;">Mahalanobis Distance</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 12px; height: 2px; background: #ffffff;"></div>
+                    <span>Position Error</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 12px; height: 2px; background: rgba(0, 255, 150, 0.9);"></div>
+                    <span>95% Confidence Bound</span>
+                </div>
+            </div>
+        `;
+
+        // Replace existing legend or add to error chart container
+        const existing = document.getElementById('errorChartLegend');
+        const errorChart = document.getElementById('errorChart');
+        if (existing) {
+            existing.replaceWith(legend);
+        } else if (errorChart) {
+            errorChart.appendChild(legend);
+        } else {
+            document.body.appendChild(legend);
+        }
     }
 
     stepTime(deltaTime) {
@@ -504,7 +592,8 @@ class App {
             console.log('✅ Filter input validation passed');
 
             // 3. Process through filter
-            const filterOutput = CAFilter.process(filterInput);
+            const filterClass = FilterRegistry.get(this.config.filterType).filterClass;
+            const filterOutput = filterClass.process(filterInput);
 
             console.log('🎯 Generated estimates:', filterOutput.estimates.length, 'points');
 
@@ -560,10 +649,8 @@ class App {
         // Reset error data
         this.errorData = {
             times: [],
-            errorX: [],
-            errorY: [],
-            confidenceX: [],
-            confidenceY: [],
+            mahalanobis: [],
+            chisquare95: [], // 95% confidence threshold (chi-square with 2 DOF = 5.991)
             ellipseCoverage: 0
         };
 
@@ -576,20 +663,6 @@ class App {
             const gtPoint = groundTruth.find(gt => Math.abs(gt.time - estimate.time) < 0.05);
             if (!gtPoint) continue;
 
-            const errorX = Math.abs(gtPoint.position[0] - estimate.position[0]);
-            const errorY = Math.abs(gtPoint.position[1] - estimate.position[1]);
-
-            // 95% confidence bounds from covariance (2-sigma)
-            const confidenceX = 2 * Math.sqrt(Math.abs(estimate.covariance[0][0]));
-            const confidenceY = 2 * Math.sqrt(Math.abs(estimate.covariance[1][1]));
-
-            this.errorData.times.push(estimate.time);
-            this.errorData.errorX.push(errorX);
-            this.errorData.errorY.push(errorY);
-            this.errorData.confidenceX.push(confidenceX);
-            this.errorData.confidenceY.push(confidenceY);
-
-            // Check if ground truth is within error ellipse (2D Mahalanobis distance)
             validPoints++;
             const dx = gtPoint.position[0] - estimate.position[0];
             const dy = gtPoint.position[1] - estimate.position[1];
@@ -598,20 +671,28 @@ class App {
             const cov = estimate.covariance;
             const detCov = cov[0][0] * cov[1][1] - cov[0][1] * cov[1][0];
 
+            let mahalanobisSq = 0;
             if (Math.abs(detCov) > 1e-10) { // Check for non-singular covariance
                 const invCov = [
                     [cov[1][1] / detCov, -cov[0][1] / detCov],
                     [-cov[1][0] / detCov, cov[0][0] / detCov]
                 ];
 
-                const mahalanobisSq = dx * (invCov[0][0] * dx + invCov[0][1] * dy) +
-                                     dy * (invCov[1][0] * dx + invCov[1][1] * dy);
+                mahalanobisSq = dx * (invCov[0][0] * dx + invCov[0][1] * dy) +
+                               dy * (invCov[1][0] * dx + invCov[1][1] * dy);
 
                 // For 95% confidence, chi-square with 2 DOF = 5.991
                 if (mahalanobisSq <= 5.991) {
                     coveredPoints++;
                 }
+            } else {
+                // Fallback for singular covariance: use Euclidean distance
+                mahalanobisSq = (dx * dx + dy * dy) / Math.max(cov[0][0], cov[1][1], 1e-6);
             }
+
+            this.errorData.times.push(estimate.time);
+            this.errorData.mahalanobis.push(Math.sqrt(mahalanobisSq)); // Store as distance, not squared
+            this.errorData.chisquare95.push(Math.sqrt(5.991)); // 95% confidence bound
         }
 
         // Calculate overall ellipse coverage percentage
@@ -631,30 +712,21 @@ class App {
         // Chart styling with minimal margins
         const margin = { top: 8, right: 8, bottom: 15, left: 15 };
         const chartWidth = width - margin.left - margin.right;
-        const chartHeight = (height - margin.top - margin.bottom) / 2; // Split for X and Y plots
+        const chartHeight = height - margin.top - margin.bottom; // Single plot
 
         // Data bounds
         const timeRange = [Math.min(...this.errorData.times), Math.max(...this.errorData.times)];
         const errorRange = [0, Math.max(
-            ...this.errorData.errorX,
-            ...this.errorData.errorY,
-            ...this.errorData.confidenceX,
-            ...this.errorData.confidenceY
+            ...this.errorData.mahalanobis,
+            ...this.errorData.chisquare95
         )];
 
         // Helper functions
         const timeToX = (time) => margin.left + ((time - timeRange[0]) / (timeRange[1] - timeRange[0])) * chartWidth;
-        const errorToY = (error, chartIndex) => margin.top + chartIndex * (chartHeight + 5) + chartHeight - (error / errorRange[1]) * chartHeight;
+        const errorToY = (error) => margin.top + chartHeight - (error / errorRange[1]) * chartHeight;
 
-        // Draw X error chart (top)
-        this.drawErrorSubChart(ctx, 0, timeToX, errorToY,
-            this.errorData.errorX, this.errorData.confidenceX,
-            '#ff4444', 'X Error', null, chartHeight);
-
-        // Draw Y error chart (bottom)
-        this.drawErrorSubChart(ctx, 1, timeToX, errorToY,
-            this.errorData.errorY, this.errorData.confidenceY,
-            '#44ff44', 'Y Error', null, chartHeight);
+        // Draw Mahalanobis distance chart
+        this.drawMahalanobisChart(ctx, timeToX, errorToY);
 
         // Update ellipse coverage display in controls
         const coverageElement = document.getElementById('ellipseCoverage');
@@ -676,53 +748,49 @@ class App {
         }
     }
 
-    drawErrorSubChart(ctx, chartIndex, timeToX, errorToY, errorData, confidenceData, color, label, coverage, chartHeight) {
-        // Draw confidence bounds (filled area)
-        ctx.fillStyle = color + '40'; // Transparent
+    drawMahalanobisChart(ctx, timeToX, errorToY) {
+        // Draw 95% confidence bound (filled area)
+        ctx.fillStyle = 'rgba(0, 255, 150, 0.15)'; // Neon green transparent
         ctx.beginPath();
         for (let i = 0; i < this.errorData.times.length; i++) {
             const x = timeToX(this.errorData.times[i]);
-            const y = errorToY(confidenceData[i], chartIndex);
+            const y = errorToY(this.errorData.chisquare95[i]);
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
         for (let i = this.errorData.times.length - 1; i >= 0; i--) {
             const x = timeToX(this.errorData.times[i]);
-            const y = errorToY(0, chartIndex); // Bottom bound
+            const y = errorToY(0); // Bottom bound
             ctx.lineTo(x, y);
         }
         ctx.closePath();
         ctx.fill();
 
-        // Draw confidence bound line
-        ctx.strokeStyle = color + 'aa'; // Semi-transparent
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let i = 0; i < this.errorData.times.length; i++) {
-            const x = timeToX(this.errorData.times[i]);
-            const y = errorToY(confidenceData[i], chartIndex);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        // Draw error data line
-        ctx.strokeStyle = color;
+        // Draw confidence bound line (95% threshold)
+        ctx.strokeStyle = 'rgba(0, 255, 150, 0.9)'; // Neon green
         ctx.lineWidth = 2;
         ctx.beginPath();
         for (let i = 0; i < this.errorData.times.length; i++) {
             const x = timeToX(this.errorData.times[i]);
-            const y = errorToY(errorData[i], chartIndex);
+            const y = errorToY(this.errorData.chisquare95[i]);
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
         ctx.stroke();
 
-        // Draw label (no individual coverage stats)
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
-        const chartY = 8 + chartIndex * (chartHeight + 5);
-        ctx.fillText(label, 20, chartY + 12);
+        // Draw Mahalanobis distance line
+        ctx.strokeStyle = '#ffffff'; // White
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < this.errorData.times.length; i++) {
+            const x = timeToX(this.errorData.times[i]);
+            const y = errorToY(this.errorData.mahalanobis[i]);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Chart title is now in the legend overlay
     }
 
     draw() {

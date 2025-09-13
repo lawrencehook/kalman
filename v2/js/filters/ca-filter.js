@@ -5,6 +5,9 @@
  * 6-dimensional state space for full 2D motion modeling
  */
 class CAFilter {
+    static displayName = 'Constant Acceleration';
+    static description = 'Standard Kalman filter with constant acceleration model';
+    static order = 1;
     /**
      * Simple 2x2 matrix inverse
      * @private
