@@ -36,6 +36,16 @@ class App {
             confidence: true
         };
 
+        // Error analysis data
+        this.errorData = {
+            times: [],
+            errorX: [],
+            errorY: [],
+            confidenceX: [],
+            confidenceY: [],
+            ellipseCoverage: 0
+        };
+
         this.init();
     }
 
@@ -164,14 +174,14 @@ class App {
 
             <label>Measurement Noise:
                 <div class="slider-container">
-                    <input type="range" id="noiseSlider" min="0.1" max="20" value="5" step="0.1">
+                    <input type="range" id="noiseSlider" min="-10" max="10" value="7" step="1">
                     <span id="noiseValue">5.0</span>
                 </div>
             </label>
 
             <label>Process Noise:
                 <div class="slider-container">
-                    <input type="range" id="processNoiseSlider" min="0.1" max="5" value="1" step="0.1">
+                    <input type="range" id="processNoiseSlider" min="-10" max="10" value="0" step="1">
                     <span id="processNoiseValue">1.0</span>
                 </div>
             </label>
@@ -193,6 +203,9 @@ class App {
                     <button id="playBtn">Play</button>
                     <button id="stepForwardBtn">▶</button>
                     <button id="resetBtn">Reset</button>
+                </div>
+                <div style="text-align: center; margin-top: 8px; font-size: 11px; color: #aaa;">
+                    <span id="ellipseCoverage">95% ellipse coverage: --</span>
                 </div>
             </div>
         `;
@@ -240,13 +253,17 @@ class App {
         });
 
         document.getElementById('noiseSlider').oninput = (e) => {
-            this.config.measurementNoise = parseFloat(e.target.value);
-            document.getElementById('noiseValue').textContent = e.target.value;
+            const logValue = parseFloat(e.target.value);
+            const linearNoise = this.logToLinearScale(logValue);
+            this.config.measurementNoise = linearNoise;
+            document.getElementById('noiseValue').textContent = linearNoise.toFixed(1);
             this.generateAndRun();
         };
         document.getElementById('processNoiseSlider').oninput = (e) => {
-            this.config.processNoise = parseFloat(e.target.value);
-            document.getElementById('processNoiseValue').textContent = e.target.value;
+            const logValue = parseFloat(e.target.value);
+            const linearNoise = this.logToLinearScale(logValue);
+            this.config.processNoise = linearNoise;
+            document.getElementById('processNoiseValue').textContent = linearNoise.toFixed(1);
             this.generateAndRun();
         };
         document.getElementById('ratioSlider').oninput = (e) => {
@@ -310,9 +327,21 @@ class App {
     }
 
     initializeSliderValues() {
-        // Set ratio slider to logarithmic position for default value (1.0)
-        const logValue = this.linearToLogScale(this.config.estimateRatio);
-        document.getElementById('ratioSlider').value = logValue;
+        // Set all sliders to logarithmic positions for their default values
+
+        // Measurement noise slider (default 5.0)
+        const measurementLogValue = this.linearToLogScale(this.config.measurementNoise);
+        document.getElementById('noiseSlider').value = measurementLogValue;
+        document.getElementById('noiseValue').textContent = this.config.measurementNoise.toFixed(1);
+
+        // Process noise slider (default 1.0)
+        const processLogValue = this.linearToLogScale(this.config.processNoise);
+        document.getElementById('processNoiseSlider').value = processLogValue;
+        document.getElementById('processNoiseValue').textContent = this.config.processNoise.toFixed(1);
+
+        // Ratio slider (default 1.0)
+        const ratioLogValue = this.linearToLogScale(this.config.estimateRatio);
+        document.getElementById('ratioSlider').value = ratioLogValue;
         document.getElementById('ratioValue').textContent = this.config.estimateRatio.toFixed(1);
     }
 
@@ -400,13 +429,11 @@ class App {
     }
 
     createErrorChartOverlay() {
-        // Create error chart overlay
+        // Create error chart overlay with canvas
         const errorChart = document.createElement('div');
         errorChart.id = 'errorChart';
         errorChart.innerHTML = `
-            <div style="color: #888; font-size: 16px; font-weight: 600; text-align: center; margin-bottom: 10px;">Error Analysis</div>
-            <div style="color: #666; font-size: 12px; text-align: center;">Position error metrics</div>
-            <div style="color: #666; font-size: 12px; text-align: center;">will appear here</div>
+            <canvas id="errorCanvas" width="480" height="240"></canvas>
         `;
 
         // Replace existing error chart or add to body
@@ -416,6 +443,10 @@ class App {
         } else {
             document.body.appendChild(errorChart);
         }
+
+        // Initialize error chart canvas
+        this.errorCanvas = document.getElementById('errorCanvas');
+        this.errorCtx = this.errorCanvas.getContext('2d');
     }
 
     stepTime(deltaTime) {
@@ -495,6 +526,9 @@ class App {
             this.currentData = vizData;
             this.currentTime = 0;
 
+            // Calculate error analysis data
+            this.calculateErrorData();
+
             // Update time slider range based on data duration
             const maxTime = Math.max(...vizData.groundTruth.map(p => p.time));
             const timeSlider = document.getElementById('timeSlider');
@@ -516,6 +550,179 @@ class App {
         } catch (error) {
             console.error('❌ Pipeline failed:', error);
         }
+    }
+
+    calculateErrorData() {
+        if (!this.currentData) return;
+
+        const { groundTruth, estimates } = this.currentData;
+
+        // Reset error data
+        this.errorData = {
+            times: [],
+            errorX: [],
+            errorY: [],
+            confidenceX: [],
+            confidenceY: [],
+            ellipseCoverage: 0
+        };
+
+        // Calculate errors for each estimate that has corresponding ground truth
+        let validPoints = 0;
+        let coveredPoints = 0;
+
+        for (const estimate of estimates) {
+            // Find corresponding ground truth point
+            const gtPoint = groundTruth.find(gt => Math.abs(gt.time - estimate.time) < 0.05);
+            if (!gtPoint) continue;
+
+            const errorX = Math.abs(gtPoint.position[0] - estimate.position[0]);
+            const errorY = Math.abs(gtPoint.position[1] - estimate.position[1]);
+
+            // 95% confidence bounds from covariance (2-sigma)
+            const confidenceX = 2 * Math.sqrt(Math.abs(estimate.covariance[0][0]));
+            const confidenceY = 2 * Math.sqrt(Math.abs(estimate.covariance[1][1]));
+
+            this.errorData.times.push(estimate.time);
+            this.errorData.errorX.push(errorX);
+            this.errorData.errorY.push(errorY);
+            this.errorData.confidenceX.push(confidenceX);
+            this.errorData.confidenceY.push(confidenceY);
+
+            // Check if ground truth is within error ellipse (2D Mahalanobis distance)
+            validPoints++;
+            const dx = gtPoint.position[0] - estimate.position[0];
+            const dy = gtPoint.position[1] - estimate.position[1];
+
+            // Calculate squared Mahalanobis distance
+            const cov = estimate.covariance;
+            const detCov = cov[0][0] * cov[1][1] - cov[0][1] * cov[1][0];
+
+            if (Math.abs(detCov) > 1e-10) { // Check for non-singular covariance
+                const invCov = [
+                    [cov[1][1] / detCov, -cov[0][1] / detCov],
+                    [-cov[1][0] / detCov, cov[0][0] / detCov]
+                ];
+
+                const mahalanobisSq = dx * (invCov[0][0] * dx + invCov[0][1] * dy) +
+                                     dy * (invCov[1][0] * dx + invCov[1][1] * dy);
+
+                // For 95% confidence, chi-square with 2 DOF = 5.991
+                if (mahalanobisSq <= 5.991) {
+                    coveredPoints++;
+                }
+            }
+        }
+
+        // Calculate overall ellipse coverage percentage
+        this.errorData.ellipseCoverage = validPoints > 0 ? (coveredPoints / validPoints) * 100 : 0;
+    }
+
+    drawErrorChart() {
+        if (!this.errorCanvas || !this.errorData || this.errorData.times.length === 0) return;
+
+        const ctx = this.errorCtx;
+        const canvas = this.errorCanvas;
+        const { width, height } = canvas;
+
+        // Clear canvas (transparent background handled by CSS)
+        ctx.clearRect(0, 0, width, height);
+
+        // Chart styling with minimal margins
+        const margin = { top: 8, right: 8, bottom: 15, left: 15 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = (height - margin.top - margin.bottom) / 2; // Split for X and Y plots
+
+        // Data bounds
+        const timeRange = [Math.min(...this.errorData.times), Math.max(...this.errorData.times)];
+        const errorRange = [0, Math.max(
+            ...this.errorData.errorX,
+            ...this.errorData.errorY,
+            ...this.errorData.confidenceX,
+            ...this.errorData.confidenceY
+        )];
+
+        // Helper functions
+        const timeToX = (time) => margin.left + ((time - timeRange[0]) / (timeRange[1] - timeRange[0])) * chartWidth;
+        const errorToY = (error, chartIndex) => margin.top + chartIndex * (chartHeight + 5) + chartHeight - (error / errorRange[1]) * chartHeight;
+
+        // Draw X error chart (top)
+        this.drawErrorSubChart(ctx, 0, timeToX, errorToY,
+            this.errorData.errorX, this.errorData.confidenceX,
+            '#ff4444', 'X Error', null, chartHeight);
+
+        // Draw Y error chart (bottom)
+        this.drawErrorSubChart(ctx, 1, timeToX, errorToY,
+            this.errorData.errorY, this.errorData.confidenceY,
+            '#44ff44', 'Y Error', null, chartHeight);
+
+        // Update ellipse coverage display in controls
+        const coverageElement = document.getElementById('ellipseCoverage');
+        if (coverageElement) {
+            coverageElement.textContent = `95% ellipse coverage: ${this.errorData.ellipseCoverage.toFixed(1)}%`;
+        }
+
+        // Draw current time indicator
+        if (this.currentTime >= timeRange[0] && this.currentTime <= timeRange[1]) {
+            const timeX = timeToX(this.currentTime);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(timeX, margin.top);
+            ctx.lineTo(timeX, height - margin.bottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+
+    drawErrorSubChart(ctx, chartIndex, timeToX, errorToY, errorData, confidenceData, color, label, coverage, chartHeight) {
+        // Draw confidence bounds (filled area)
+        ctx.fillStyle = color + '40'; // Transparent
+        ctx.beginPath();
+        for (let i = 0; i < this.errorData.times.length; i++) {
+            const x = timeToX(this.errorData.times[i]);
+            const y = errorToY(confidenceData[i], chartIndex);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        for (let i = this.errorData.times.length - 1; i >= 0; i--) {
+            const x = timeToX(this.errorData.times[i]);
+            const y = errorToY(0, chartIndex); // Bottom bound
+            ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw confidence bound line
+        ctx.strokeStyle = color + 'aa'; // Semi-transparent
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < this.errorData.times.length; i++) {
+            const x = timeToX(this.errorData.times[i]);
+            const y = errorToY(confidenceData[i], chartIndex);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Draw error data line
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < this.errorData.times.length; i++) {
+            const x = timeToX(this.errorData.times[i]);
+            const y = errorToY(errorData[i], chartIndex);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Draw label (no individual coverage stats)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+        const chartY = 8 + chartIndex * (chartHeight + 5);
+        ctx.fillText(label, 20, chartY + 12);
     }
 
     draw() {
@@ -602,6 +809,8 @@ class App {
             }
         }
 
+        // Draw error chart overlay
+        this.drawErrorChart();
 
         // Legend and error chart are now HTML overlays
     }
