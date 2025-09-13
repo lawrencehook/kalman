@@ -1,6 +1,6 @@
 {
   "name": "TrajectoryPoint",
-  "description": "Single data point from trajectory generation",
+  "description": "Timestamped data point from trajectory generation",
   "required": ["time", "position"],
   "properties": {
     "time": {

@@ -1,31 +1,45 @@
 {
   "name": "FilterOutput",
-  "description": "Output data from filtering algorithm",
-  "required": ["estimate", "covariance"],
+  "description": "Batch output data from filtering algorithm",
+  "required": ["estimates"],
   "properties": {
-    "estimate": {
+    "estimates": {
       "type": "array",
-      "length": 2,
-      "elementType": "number",
-      "description": "Estimated 2D position [x, y]"
-    },
-    "covariance": {
-      "type": "matrix",
-      "dimensions": [2, 2],
-      "elementType": "number",
-      "description": "2x2 position covariance matrix"
-    },
-    "innovation": {
-      "type": "array",
-      "length": 2,
-      "elementType": "number",
-      "optional": true,
-      "description": "Measurement residual [dx, dy]"
-    },
-    "confidence": {
-      "type": "number",
-      "optional": true,
-      "description": "Confidence level (0-1)"
+      "elementType": {
+        "type": "object",
+        "required": ["time", "position", "covariance"],
+        "properties": {
+          "time": {
+            "type": "number",
+            "description": "Estimate timestamp in seconds"
+          },
+          "position": {
+            "type": "array",
+            "length": 2,
+            "elementType": "number",
+            "description": "Estimated 2D position [x, y]"
+          },
+          "covariance": {
+            "type": "matrix",
+            "dimensions": [2, 2],
+            "elementType": "number",
+            "description": "2x2 position covariance matrix"
+          },
+          "innovation": {
+            "type": "array",
+            "length": 2,
+            "elementType": "number",
+            "optional": true,
+            "description": "Measurement residual [dx, dy]"
+          },
+          "confidence": {
+            "type": "number",
+            "optional": true,
+            "description": "Confidence level (0-1)"
+          }
+        }
+      },
+      "description": "Array of timestamped estimates with uncertainty"
     }
   }
 }

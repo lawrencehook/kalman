@@ -1,51 +1,73 @@
 {
   "name": "VizData",
-  "description": "Data package for visualization components",
-  "required": ["groundTruth", "measurements", "estimates", "currentTime"],
+  "description": "Timestamped data package for visualization components",
+  "required": ["groundTruth", "measurements", "estimates"],
   "properties": {
     "groundTruth": {
       "type": "array",
       "elementType": {
-        "type": "array",
-        "length": 2,
-        "elementType": "number"
+        "type": "object",
+        "required": ["time", "position"],
+        "properties": {
+          "time": {
+            "type": "number",
+            "description": "Timestamp in seconds"
+          },
+          "position": {
+            "type": "array",
+            "length": 2,
+            "elementType": "number",
+            "description": "True 2D position [x, y]"
+          }
+        }
       },
-      "description": "Array of true positions [[x,y], ...]"
+      "description": "Array of timestamped ground truth positions"
     },
     "measurements": {
       "type": "array",
       "elementType": {
-        "type": "array",
-        "length": 2,
-        "elementType": "number"
+        "type": "object",
+        "required": ["time", "position"],
+        "properties": {
+          "time": {
+            "type": "number",
+            "description": "Measurement timestamp in seconds"
+          },
+          "position": {
+            "type": "array",
+            "length": 2,
+            "elementType": "number",
+            "description": "Noisy 2D measurement [x, y]"
+          }
+        }
       },
-      "description": "Array of noisy measurements [[x,y], ...]"
+      "description": "Array of timestamped measurements"
     },
     "estimates": {
       "type": "array",
       "elementType": {
-        "type": "array",
-        "length": 2,
-        "elementType": "number"
+        "type": "object",
+        "required": ["time", "position", "covariance"],
+        "properties": {
+          "time": {
+            "type": "number",
+            "description": "Estimate timestamp in seconds"
+          },
+          "position": {
+            "type": "array",
+            "length": 2,
+            "elementType": "number",
+            "description": "Estimated 2D position [x, y]"
+          },
+          "covariance": {
+            "type": "matrix",
+            "dimensions": [2, 2],
+            "elementType": "number",
+            "description": "2x2 position covariance matrix"
+          }
+        }
       },
-      "description": "Array of filter estimates [[x,y], ...]"
-    },
-    "confidenceEllipses": {
-      "type": "array",
-      "elementType": "object",
-      "optional": true,
-      "description": "Array of confidence ellipse data"
-    },
-    "currentTime": {
-      "type": "number",
-      "description": "Current simulation time"
-    },
-    "timeRange": {
-      "type": "array",
-      "length": 2,
-      "elementType": "number",
-      "optional": true,
-      "description": "Time range [start, end]"
+      "description": "Array of timestamped estimates with covariance"
     }
   }
 }

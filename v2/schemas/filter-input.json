@@ -1,21 +1,52 @@
 {
   "name": "FilterInput",
-  "description": "Input data sent to filtering algorithm",
-  "required": ["measurement", "timestamp", "measurementNoise"],
+  "description": "Batch input data sent to filtering algorithm",
+  "required": ["measurements", "config"],
   "properties": {
-    "measurement": {
+    "measurements": {
       "type": "array",
-      "length": 2,
-      "elementType": "number",
-      "description": "Noisy 2D measurement [x, y]"
+      "elementType": {
+        "type": "object",
+        "required": ["time", "position"],
+        "properties": {
+          "time": {
+            "type": "number",
+            "description": "Measurement timestamp in seconds"
+          },
+          "position": {
+            "type": "array",
+            "length": 2,
+            "elementType": "number",
+            "description": "Noisy 2D measurement [x, y]"
+          },
+          "noise": {
+            "type": "number",
+            "optional": true,
+            "description": "Measurement noise variance for this measurement"
+          }
+        }
+      },
+      "description": "Array of timestamped measurements"
     },
-    "timestamp": {
-      "type": "number",
-      "description": "Measurement timestamp in seconds"
-    },
-    "measurementNoise": {
-      "type": "number",
-      "description": "Measurement noise variance"
+    "config": {
+      "type": "object",
+      "required": ["processNoise"],
+      "properties": {
+        "processNoise": {
+          "type": "number",
+          "description": "Process noise parameter"
+        },
+        "dt": {
+          "type": "number",
+          "optional": true,
+          "description": "Fixed time step (if uniform sampling assumed)"
+        },
+        "measurementNoise": {
+          "type": "number",
+          "optional": true,
+          "description": "Default measurement noise (if not specified per measurement)"
+        }
+      }
     }
   }
 }
