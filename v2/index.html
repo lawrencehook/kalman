@@ -3,41 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalman Filter V2</title>
+    <title>Kalman Filter V2 - Schema-Driven Architecture</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            background: white;
+            display: block;
+            margin: 10px 0;
+        }
+
+        #controls {
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+
+        #controls label {
+            margin: 0 10px;
+        }
+
+        button {
+            padding: 5px 10px;
+            margin: 0 5px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            background: #e8f4f8;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #0066cc;
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <h1>V2 Sandbox - Schema-Driven Architecture</h1>
-        <p>Open browser console and run <code>runSchemaTests()</code> to test validation</p>
+    <h1>V2 Schema-Driven Kalman Filter</h1>
+
+    <div class="status">
+        <strong>Status:</strong> Open browser console to see validation and pipeline logs
     </div>
+
+    <!-- Canvas and controls will be created by App.js -->
 
     <!-- Core V2 Components -->
     <script src="js/schema-validator.js"></script>
+    <script src="js/trajectories/data-generator.js"></script>
+    <script src="js/measurements/measurement-generator.js"></script>
+    <script src="js/filters/ca-filter.js"></script>
+    <script src="js/app.js"></script>
+
+    <!-- Test utilities (optional) -->
     <script src="js/schema-tests.js"></script>
-
-    <script>
-        console.log("🔧 V2 JSON Schema Validator loaded");
-        console.log("📋 Run runSchemaTests() to test async validation with schema loading");
-        console.log("⚡ Run runSyncTests() after schemas are loaded for sync validation");
-
-        // Example usage with async schema loading
-        async function exampleUsage() {
-            const exampleTrajectory = {
-                time: 0.05,
-                position: [10, 20],
-                velocity: [1, -0.5]
-            };
-
-            try {
-                const isValid = await SchemaValidator.validate('trajectory-point', exampleTrajectory);
-                console.log("✅ Example validation:", isValid);
-            } catch (error) {
-                console.error("❌ Validation failed:", error.message);
-            }
-        }
-
-        // Auto-run example
-        exampleUsage();
-    </script>
 </body>
 </html>
